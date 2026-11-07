@@ -3,7 +3,6 @@ defmodule ActivityPub.Fixtures do
   use Arrows
 
   # alias ActivityPub.Utils
-  require Phoenix.ConnTest
 
   @mod_path __DIR__
   def file(path), do: File.read!(@mod_path <> "/../../test/" <> path)
@@ -1660,8 +1659,12 @@ defmodule ActivityPub.Fixtures do
     if String.starts_with?(url, base_url) do
       # TODO: use headers?
       with %{resp_body: resp_body, status: status} <-
-             Phoenix.ConnTest.build_conn()
-             |> Phoenix.ConnTest.get(String.trim(url, base_url)) do
+             Phoenix.ConnTest.dispatch(
+               Phoenix.ConnTest.build_conn(),
+               ActivityPub.Test.Helpers.endpoint(),
+               :get,
+               String.trim(url, base_url)
+             ) do
         %Tesla.Env{status: status, body: resp_body}
       end
     end

@@ -13,9 +13,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
   alias ActivityPub.Test.HttpRequestMock
   alias ActivityPub.Federator.Workers
 
-  import Mock
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     # clear_config([:instance, :max_remote_account_fields])
@@ -215,7 +213,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
       object = Object.normalize(data["object"])
 
       replies = object.data["replies"]
-      replies_length = length(replies)
+      _replies_length = length(replies)
 
       all_enqueued =
         all_enqueued(worker: Workers.RemoteFetcherWorker)
@@ -229,7 +227,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
       clear_config([:instance, :federation_incoming_max_recursion], 0)
       clear_config([:instance, :federation_incoming_max_items], 0)
 
-      already_enqueued =
+      _already_enqueued =
         length(all_enqueued(worker: Workers.RemoteFetcherWorker))
         |> debug("already_enqueued")
 
@@ -239,7 +237,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
       object = Object.normalize(data["object"])
 
       replies = object.data["replies"]
-      replies_length = length(replies)
+      _replies_length = length(replies)
 
       limit = 1
       clear_config([:instance, :federation_incoming_max_recursion], limit)
@@ -388,7 +386,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
       another_user = local_actor()
 
       activity =
-        %{data: %{"id" => id1_activity, "object" => id1_object}} =
+        %{data: %{"id" => _id1_activity, "object" => id1_object}} =
         insert(:note_activity, %{actor: user, status: "1"})
 
       # |> debug("aaaa")
@@ -402,17 +400,17 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
       # should _not_ be present in `replies` due to :note_replies_output_limit set to 2
       insert(:note_activity, %{"inReplyTo" => id1_object, actor: user, status: "self-reply 3"})
 
-      %{data: %{"id" => id2_activity, "object" => id2_object}} =
-        self_reply2 =
+      %{data: %{"id" => _id2_activity, "object" => id2_object}} =
+        _self_reply2 =
         insert(:note_activity, %{"inReplyTo" => id1_object, actor: user, status: "self-reply 1"})
         |> debug("self-reply 1")
 
-      object =
+      _object =
         Object.normalize(activity, fetch: false)
         |> debug("self-reply 1 obj")
 
-      %{data: %{"id" => id3_activity, "object" => id3_object}} =
-        self_reply3 =
+      %{data: %{"id" => _id3_activity, "object" => id3_object}} =
+        _self_reply3 =
         insert(:note_activity, %{"inReplyTo" => id1_object, actor: user, status: "self-reply 2"})
 
       insert(:note_activity, %{

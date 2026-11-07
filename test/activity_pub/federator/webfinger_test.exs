@@ -2,7 +2,6 @@ defmodule ActivityPub.Federator.WebFingerTest do
   use ActivityPub.DataCase, async: false
 
   alias ActivityPub.Federator.WebFinger
-  alias ActivityPub.Actor
   import ActivityPub.Factory
 
   import Tesla.Mock

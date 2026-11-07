@@ -1,7 +1,6 @@
 defmodule ActivityPub.Federator.TransformerFlagTest do
   use ActivityPub.DataCase, async: false
   alias ActivityPub.Federator.Transformer
-  alias ActivityPub.Actor
   alias ActivityPub.Object
 
   import ActivityPub.Factory

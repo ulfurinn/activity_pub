@@ -1,15 +1,16 @@
 defmodule ActivityPub.Web.C2SOutboxControllerTest do
+  # Bonfire's own modules, called only when running inside Bonfire
+  @compile {:no_warn_undefined, [Bonfire.Posts, Bonfire.Common.URIs]}
+
   use ActivityPub.Web.ConnCase, async: false
   use Oban.Testing, repo: repo()
   import ActivityPub.Factory
-  import Tesla.Mock
   import Plug.Conn
   import Phoenix.ConnTest
 
   alias ActivityPub.Object
   alias ActivityPub.Test.HttpRequestMock
   alias ActivityPub.Utils
-  alias ActivityPub.Tests.ObanHelpers
 
   @content_type "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 

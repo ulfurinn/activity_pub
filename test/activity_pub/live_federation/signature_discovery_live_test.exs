@@ -12,8 +12,6 @@ defmodule ActivityPub.LiveFederation.SignatureDiscoveryTest do
 
   use ActivityPub.Web.ConnCase, async: false
 
-  import ActivityPub.Factory
-
   alias ActivityPub.Actor
   alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Federator.WebFinger

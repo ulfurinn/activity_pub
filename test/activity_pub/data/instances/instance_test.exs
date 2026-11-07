@@ -4,8 +4,6 @@ defmodule ActivityPub.Instances.InstanceTest do
   alias ActivityPub.Instances.Instance
   import ActivityPub.Factory
 
-  require Ecto.Query
-
   setup_all do
     config_path = [:instance, :federation_reachability_timeout_days]
     initial_setting = ActivityPub.Config.get(config_path)

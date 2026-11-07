@@ -1,7 +1,6 @@
 defmodule ActivityPub.LiveFederation.FetchTest do
   use ActivityPub.Web.ConnCase, async: false
   # use Mneme
-  import ActivityPub.Factory
 
   alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Instances

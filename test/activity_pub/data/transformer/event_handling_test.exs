@@ -7,7 +7,6 @@ defmodule ActivityPub.Federator.Transformer.EventHandlingTest do
 
   alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Test.HttpRequestMock
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

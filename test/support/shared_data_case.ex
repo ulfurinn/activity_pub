@@ -3,10 +3,9 @@ defmodule ActivityPub.SharedDataCase do
   import ActivityPub.Utils
   import ActivityPub.Factory
   import Tesla.Mock
-  import Untangle
   alias ActivityPub.Object
 
-  setup_all tags do
+  setup_all _tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo())
     # we are setting :auto here so that the data persists for all tests,
     # normally (with :shared mode) every process runs in a transaction

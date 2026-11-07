@@ -1,4 +1,12 @@
 defmodule ActivityPub.Test.Helpers do
+  # Bonfire's own modules, called only when running inside Bonfire
+  @compile {:no_warn_undefined,
+            [
+              Bonfire.Social.Graph.Follows,
+              Bonfire.Boundaries.Blocks,
+              Bonfire.Federate.ActivityPub.AdapterUtils
+            ]}
+
   alias ActivityPub.Config
   alias ActivityPub.Utils
   alias ActivityPub.Object
@@ -6,7 +14,6 @@ defmodule ActivityPub.Test.Helpers do
   use Arrows
   import Untangle
   import Ecto.Query
-  import ActivityPub.Utils
 
   @mod_path __DIR__
   def test_path, do: Path.expand("../../test/", @mod_path)
@@ -85,7 +92,7 @@ defmodule ActivityPub.Test.Helpers do
     end
   end
 
-  def user_by_ap_id(%{user: %{} = user, actor: actor} = map), do: user |> Map.put(:actor, actor)
+  def user_by_ap_id(%{user: %{} = user, actor: actor} = _map), do: user |> Map.put(:actor, actor)
 
   def user_by_ap_id(id) when is_binary(id) do
     if ActivityPub.Federator.Adapter.adapter() == Bonfire.Federate.ActivityPub.Adapter do

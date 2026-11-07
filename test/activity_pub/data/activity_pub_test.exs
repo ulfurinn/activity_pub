@@ -4,10 +4,8 @@ defmodule ActivityPubTest do
   # SharedDataCase creates fake actors for this whole test suite, and sets up mock endpoints for them
   use ActivityPub.SharedDataCase
   import ActivityPub.Factory
-  import Tesla.Mock
   alias ActivityPub.Actor
   alias ActivityPub.Object
-  alias ActivityPub.Utils
   alias ActivityPub.Safety.Keys
 
   doctest ActivityPub
@@ -171,7 +169,7 @@ defmodule ActivityPubTest do
       assert repo().get(Object, object.id).data["type"] == "Tombstone"
     end
 
-    test "it creates a delete activity for a local actor", context do
+    test "it creates a delete activity for a local actor", _context do
       actor = local_actor()
       assert {:ok, actor} = Actor.get_cached(username: actor.username)
 
@@ -362,7 +360,7 @@ defmodule ActivityPubTest do
   end
 
   describe "update" do
-    test "it creates an update activity with the new user data", context do
+    test "it creates an update activity with the new user data", _context do
       actor = local_actor()
       assert {:ok, actor} = Actor.get_cached(username: actor.username)
       actor = Keys.add_public_key(actor)
@@ -386,7 +384,7 @@ defmodule ActivityPubTest do
       refute Map.has_key?(embedded_object, "update")
     end
 
-    test "it keeps the given published date on the updated object", context do
+    test "it keeps the given published date on the updated object", _context do
       actor = local_actor()
       assert {:ok, actor} = Actor.get_cached(username: actor.username)
       actor = Keys.add_public_key(actor)

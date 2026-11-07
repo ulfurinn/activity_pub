@@ -3,7 +3,6 @@ defmodule ActivityPub.Safety.EncryptionTest do
   use ActivityPub.DataCase, async: false
   alias ActivityPub.Safety.Encryption
   alias ActivityPub.Safety.Keys
-  alias ActivityPub.Actor
 
   # Import the test helpers that contain the local_actor() function
   import ActivityPub.Factory

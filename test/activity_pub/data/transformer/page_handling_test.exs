@@ -6,7 +6,6 @@ defmodule ActivityPub.Federator.Transformer.PageHandlingTest do
   use Oban.Testing, repo: repo()
 
   alias ActivityPub.Federator.Fetcher
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

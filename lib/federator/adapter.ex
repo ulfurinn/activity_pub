@@ -648,5 +648,7 @@ defmodule ActivityPub.Federator.Adapter do
                       collection_items: 2,
                       collection_total: 2,
                       adapter_handles?: 1,
-                      require_signed_fetch?: 0
+                      require_signed_fetch?: 0,
+                      activity_exists?: 3,
+                      items_listed?: 2
 end

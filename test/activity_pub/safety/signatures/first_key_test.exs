@@ -1,4 +1,7 @@
 defmodule ActivityPub.Safety.FirstKeyTest do
+  # Bonfire's own modules, called only when running inside Bonfire
+  @compile {:no_warn_undefined, [Bonfire.Me.Fake, Bonfire.Classify.Simulate]}
+
   @moduledoc """
   A local actor has no RSA key until one is needed: the first time its public key is asked for (a publish, rendering its actor document) one is made and saved. The actor handed back has it, so the publish that asked can sign. Seen in the logs of a dev instance as "Could not get keys for actor (expected a PEM): nil" from `add_public_key/2` during a publish job.
   """

@@ -8,8 +8,6 @@ defmodule ActivityPub.Federator.Transformer.QuoteHandlingTest do
   alias ActivityPub.Federator.Transformer
   alias ActivityPub.Test.HttpRequestMock
 
-  import Tesla.Mock
-
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)
     :ok

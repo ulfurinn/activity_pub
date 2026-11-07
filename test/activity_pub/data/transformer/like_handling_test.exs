@@ -9,7 +9,6 @@ defmodule ActivityPub.Federator.Transformer.LikeHandlingTest do
   alias ActivityPub.Federator.Transformer
 
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

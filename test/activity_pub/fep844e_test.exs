@@ -5,11 +5,9 @@ defmodule ActivityPub.FEP844eTest do
 
   use ActivityPub.Web.ConnCase, async: false
   import ActivityPub.Factory
-  import Tesla.Mock
   import Phoenix.ConnTest
 
   alias ActivityPub.Test.HttpRequestMock
-  alias ActivityPub.Utils
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

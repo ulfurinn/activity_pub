@@ -66,7 +66,7 @@ defmodule ActivityPub.ObjectListCachedTest do
     assert length(Object.list_cached(ap_ids)) == 2
 
     # delete the rows; if list_cached populated the cache, get_cached still resolves them
-    Enum.each(notes, &repo().delete/1)
+    Enum.each(notes, fn note -> repo().delete(note) end)
 
     for note <- notes do
       assert {:ok, obj} = Object.get_cached(ap_id: note.data["id"])

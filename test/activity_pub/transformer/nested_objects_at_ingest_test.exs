@@ -52,7 +52,7 @@ defmodule ActivityPub.Federator.Transformer.NestedObjectsAtIngestTest do
     }
   end
 
-  defp place(sender) do
+  defp place(_sender) do
     %{
       "id" => "https://venue-#{System.unique_integer([:positive])}.example/places/1",
       "type" => "Place",

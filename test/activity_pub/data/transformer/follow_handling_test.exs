@@ -5,13 +5,9 @@ defmodule ActivityPub.Federator.Transformer.FollowHandlingTest do
   use ActivityPub.DataCase, async: false
   alias ActivityPub.Object, as: Activity
   alias ActivityPub.Federator.Transformer
-  alias ActivityPub.Utils
   alias ActivityPub.Test.HttpRequestMock
 
   import ActivityPub.Factory
-  import Ecto.Query
-  import Mock
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)
@@ -113,7 +109,7 @@ defmodule ActivityPub.Federator.Transformer.FollowHandlingTest do
         |> Map.put("object", ap_id(user))
         |> Object.normalize_params()
 
-      {:ok, %Activity{id: id, data: data, local: false}} =
+      {:ok, %Activity{id: _id, data: data, local: false}} =
         Transformer.handle_incoming(data)
         |> debug
 

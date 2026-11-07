@@ -1,8 +1,10 @@
 defmodule ActivityPub.Web.ActivityPubControllerTest do
+  # inherited from Pleroma, called only by tests tagged :todo
+  @compile {:no_warn_undefined, [CommonAPI]}
+
   use ActivityPub.Web.ConnCase, async: false
   use Oban.Testing, repo: repo()
   import ActivityPub.Factory
-  import Tesla.Mock
   import Plug.Conn
   import Phoenix.ConnTest
 
@@ -446,7 +448,7 @@ defmodule ActivityPub.Web.ActivityPubControllerTest do
              |> get("#{Utils.ap_base_url()}/objects/#{uuid}")
              |> json_response(404)
 
-      assert response =
+      assert _response =
                conn
                |> assign(:current_user, user_by_ap_id(author))
                |> put_req_header("accept", "application/activity+json")
@@ -852,7 +854,7 @@ defmodule ActivityPub.Web.ActivityPubControllerTest do
       actor = local_actor()
       status = "note activity in a collection"
       note_activity = local_note_activity(actor: actor, status: status)
-      note_object = Object.normalize(note_activity, fetch: false)
+      _note_object = Object.normalize(note_activity, fetch: false)
       # |> debug("objjj")
       user = user_by_ap_id(actor)
 
@@ -872,7 +874,7 @@ defmodule ActivityPub.Web.ActivityPubControllerTest do
       actor = local_actor()
       status = "announce activity about note in a collection"
       note = insert(:note, status: status)
-      announce_activity = insert(:announce_activity, actor: actor, note_activity: note)
+      _announce_activity = insert(:announce_activity, actor: actor, note_activity: note)
       user = user_by_ap_id(actor)
 
       conn =

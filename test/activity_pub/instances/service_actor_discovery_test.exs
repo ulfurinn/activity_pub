@@ -5,7 +5,6 @@ defmodule ActivityPub.Instances.ServiceActorDiscoveryTest do
 
   use ActivityPub.Web.ConnCase
 
-  import ActivityPub.Factory
   import Mock
   import Tesla.Mock
 

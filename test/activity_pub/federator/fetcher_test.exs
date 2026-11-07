@@ -1,7 +1,6 @@
 defmodule ActivityPub.Federator.FetcherTest do
   use ActivityPub.DataCase, async: false
   import Tesla.Mock
-  import Mock
 
   alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Federator.WebFinger

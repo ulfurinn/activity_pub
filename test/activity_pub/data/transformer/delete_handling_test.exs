@@ -5,15 +5,12 @@ defmodule ActivityPub.Federator.Transformer.DeleteHandlingTest do
   use ActivityPub.DataCase, async: false
   use Oban.Testing, repo: repo()
 
-  alias ActivityPub.Object, as: Activity
   alias ActivityPub.Object
 
   alias ActivityPub.Federator.Transformer
   alias ActivityPub.Test.HttpRequestMock
-  alias ActivityPub.Tests.ObanHelpers
 
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

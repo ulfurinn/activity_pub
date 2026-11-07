@@ -5,10 +5,8 @@ defmodule ActivityPub.Federator.Transformer.UserUpdateHandlingTest do
   use ActivityPub.DataCase, async: false
 
   alias ActivityPub.Actor
-  alias ActivityPub.Object, as: Activity
   alias ActivityPub.Federator.Transformer
 
-  import ActivityPub.Factory
   import Tesla.Mock
 
   setup_all do

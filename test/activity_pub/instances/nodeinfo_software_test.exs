@@ -17,7 +17,7 @@ defmodule ActivityPub.Instances.NodeinfoSoftwareTest do
   defp mock_nodeinfo(host, software) do
     test_pid = self()
 
-    mock(fn %{url: url} = env ->
+    mock(fn %Tesla.Env{url: url} = env ->
       send(test_pid, {:requested, url})
 
       cond do
@@ -90,7 +90,7 @@ defmodule ActivityPub.Instances.NodeinfoSoftwareTest do
     host = unique_host("nodeinfo-http")
     test_pid = self()
 
-    mock(fn %{url: url} = env ->
+    mock(fn %Tesla.Env{url: url} = env ->
       send(test_pid, {:requested, url})
 
       cond do

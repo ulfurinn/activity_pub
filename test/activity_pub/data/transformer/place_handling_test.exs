@@ -7,10 +7,8 @@ defmodule ActivityPub.Federator.Transformer.PlaceHandlingTest do
 
   alias ActivityPub.Object, as: Activity
   alias ActivityPub.Object
-  alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Federator.Transformer
   alias ActivityPub.Test.HttpRequestMock
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

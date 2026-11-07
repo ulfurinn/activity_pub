@@ -1,7 +1,9 @@
 defmodule ActivityPub.Factory do
+  # Bonfire's own modules, called only when running inside Bonfire
+  @compile {:no_warn_undefined, [Bonfire.Me.Fake, Bonfire.Posts.Fake]}
+
   import ActivityPub.Test.Helpers
   import ActivityPub.Utils
-  alias ActivityPub.Actor
   alias ActivityPub.Object
   import Untangle
   alias ActivityPub.Federator.Adapter

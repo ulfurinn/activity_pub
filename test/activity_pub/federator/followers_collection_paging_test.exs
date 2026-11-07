@@ -15,7 +15,6 @@ defmodule ActivityPub.Web.FollowersCollectionPagingTest do
   use ActivityPub.Web.ConnCase, async: false
   use Repatch.ExUnit
   import ActivityPub.Factory
-  import Plug.Conn
   import Phoenix.ConnTest
 
   alias ActivityPub.Utils
@@ -36,7 +35,7 @@ defmodule ActivityPub.Web.FollowersCollectionPagingTest do
     if page, do: "#{base}?page=#{page}", else: base
   end
 
-  defp following_url(actor, page \\ nil) do
+  defp following_url(actor, page) do
     base = "#{Utils.ap_base_url()}/actors/#{nickname(actor)}/following"
     if page, do: "#{base}?page=#{page}", else: base
   end

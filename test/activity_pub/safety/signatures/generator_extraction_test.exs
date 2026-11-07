@@ -5,8 +5,6 @@ defmodule ActivityPub.Safety.Signatures.GeneratorExtractionTest do
 
   use ActivityPub.Web.ConnCase
 
-  import ActivityPub.Factory
-  import Mock
   import Tesla.Mock
 
   alias ActivityPub.Safety.HTTP.Signatures, as: SignaturesAdapter

@@ -10,7 +10,6 @@ defmodule ActivityPub.Web.C2SProofTest do
   use Oban.Testing, repo: repo()
 
   import ActivityPub.Factory
-  import Tesla.Mock
   import Plug.Conn
   import Phoenix.ConnTest
 

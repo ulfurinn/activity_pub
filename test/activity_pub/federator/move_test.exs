@@ -35,7 +35,7 @@ defmodule ActivityPub.MoveTest do
         ])
       end)
 
-    {:ok, updated} =
+    {:ok, _updated} =
       Transformer.handle_incoming(update_data)
       |> debug("not actually updated because the server actor wasn't updated")
 
@@ -52,7 +52,7 @@ defmodule ActivityPub.MoveTest do
         HttpRequestMock.request(env)
     end)
 
-    {:ok, updated} =
+    {:ok, _updated} =
       Transformer.handle_incoming(update_data)
       |> debug("actually updated")
 
@@ -253,7 +253,7 @@ defmodule ActivityPub.MoveTest do
       old_user = local_actor()
       old_ap_id = ap_id(old_user)
       new_user = local_actor(also_known_as: [old_ap_id])
-      new_ap_id = ap_id(new_user)
+      _new_ap_id = ap_id(new_user)
       follower_remote = actor(local: false)
 
       follow(follower_remote, old_user)
@@ -271,7 +271,7 @@ defmodule ActivityPub.MoveTest do
       old_user = local_actor()
       old_ap_id = ap_id(old_user)
       new_user = local_actor(also_known_as: [old_ap_id])
-      new_ap_id = ap_id(new_user)
+      _new_ap_id = ap_id(new_user)
       follower_remote = actor(local: false)
       follower_local = local_actor()
 

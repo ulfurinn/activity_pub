@@ -8,7 +8,6 @@ defmodule ActivityPub.Safety.SignatureTest do
   import Plug.Conn
   import Phoenix.ConnTest
 
-  alias ActivityPub.Actor
   alias ActivityPub.Safety.Keys
   alias ActivityPub.Utils
   alias ActivityPub.Safety.HTTP.Signatures

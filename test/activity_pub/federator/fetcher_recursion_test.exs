@@ -1,14 +1,8 @@
 defmodule ActivityPub.Federator.FetcherRecursionTest do
   use ActivityPub.DataCase, async: false
   import Tesla.Mock
-  import Mock
 
   alias ActivityPub.Federator.Fetcher
-  alias ActivityPub.Federator.WebFinger
-
-  alias ActivityPub.Object, as: Activity
-  alias ActivityPub.Instances
-  alias ActivityPub.Object
 
   alias ActivityPub.Test.HttpRequestMock
 

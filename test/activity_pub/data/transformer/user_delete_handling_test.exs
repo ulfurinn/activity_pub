@@ -5,7 +5,6 @@ defmodule ActivityPub.Federator.Transformer.UserDeleteHandlingTest do
   use ActivityPub.DataCase, async: false
   use Oban.Testing, repo: repo()
 
-  alias ActivityPub.Object, as: Activity
   alias ActivityPub.Object
 
   alias ActivityPub.Federator.Transformer
@@ -13,7 +12,6 @@ defmodule ActivityPub.Federator.Transformer.UserDeleteHandlingTest do
   alias ActivityPub.Tests.ObanHelpers
 
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn
@@ -36,7 +34,7 @@ defmodule ActivityPub.Federator.Transformer.UserDeleteHandlingTest do
   end
 
   test "delete user works for incoming user deletes where the remote actor 404s" do
-    actor =
+    _actor =
       %{data: %{"id" => ap_id}} =
       insert(:actor, %{
         ap_id: "https://mastodon.local/users/deleted"
@@ -60,7 +58,7 @@ defmodule ActivityPub.Federator.Transformer.UserDeleteHandlingTest do
         ap_id: "https://mastodon.local/users/tombstoned"
       })
 
-    actor =
+    _actor =
       cached_or_handle(actor)
       |> debug("cached_or_handled")
 
@@ -82,7 +80,7 @@ defmodule ActivityPub.Federator.Transformer.UserDeleteHandlingTest do
         ap_id: "https://mastodon.local/users/admin"
       })
 
-    actor =
+    _actor =
       cached_or_handle(actor)
       |> debug("cached_or_handled")
 

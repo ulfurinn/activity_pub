@@ -1,19 +1,11 @@
 defmodule ActivityPub.Federator.FetcherSpoofTest do
   use ActivityPub.DataCase, async: false
   import Tesla.Mock
-  import Mock
   use Oban.Testing, repo: repo()
 
   alias ActivityPub.Federator.Fetcher
-  alias ActivityPub.Federator.WebFinger
-
-  alias ActivityPub.Object, as: Activity
-  alias ActivityPub.Instances
-  alias ActivityPub.Object
 
   alias ActivityPub.Test.HttpRequestMock
-
-  @sample_object "{\"actor\": \"https://mocked.local/users/karen\", \"id\": \"https://mocked.local/2\", \"to\": \"#{ActivityPub.Config.public_uri()}\"}"
 
   setup_all do
     mock_global(fn

@@ -1,4 +1,7 @@
 defmodule ActivityPub.Web.CollectionServingTest do
+  # Bonfire's own modules, called only when running inside Bonfire
+  @compile {:no_warn_undefined, [Bonfire.Posts, Bonfire.Social.Pins, Bonfire.Common.URIs]}
+
   @moduledoc """
   Serving collections over HTTP at `GET /pub/collections/:type/:uuid`, covering both ownership modes:
 
@@ -11,7 +14,6 @@ defmodule ActivityPub.Web.CollectionServingTest do
   """
   use ActivityPub.Web.ConnCase, async: false
   import ActivityPub.Factory
-  import Tesla.Mock
   import Plug.Conn
   import Phoenix.ConnTest
 

@@ -128,11 +128,13 @@ defmodule ActivityPub.Web.ServedOriginalTest do
     end
 
     for followers_only? <- [false, true] do
+      # read from the tag, not `unquote`d into the body, where a literal makes the branches on it warn as never taken
+      @tag followers_only: followers_only?
       test "the post is served as a Tombstone, followers only: #{followers_only?}",
            %{
-             author_id: author_id
+             author_id: author_id,
+             followers_only: followers_only?
            } = context do
-        followers_only? = unquote(followers_only?)
         to = if followers_only?, do: ["#{author_id}/followers"], else: [@public]
         %{note: note, content: content} = received_note(context, to)
 

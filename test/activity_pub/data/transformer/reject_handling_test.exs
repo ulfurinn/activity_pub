@@ -7,10 +7,8 @@ defmodule ActivityPub.Federator.Transformer.RejectHandlingTest do
   alias ActivityPub.Object
   alias ActivityPub.Object, as: Activity
   alias ActivityPub.Federator.Transformer
-  alias ActivityPub.Utils
 
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)

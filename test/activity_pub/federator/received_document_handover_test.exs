@@ -16,18 +16,24 @@ defmodule ActivityPub.Federator.ReceivedDocumentHandoverTest do
   alias ActivityPub.Object
 
   defmodule TwoArity do
-    def handle_activity(activity, opts),
-      do: send(self(), {:handed_over, activity.data["id"], opts[:data_received]}) && {:ok, :two}
+    def handle_activity(activity, opts) do
+      send(self(), {:handed_over, activity.data["id"], opts[:data_received]})
+      {:ok, :two}
+    end
   end
 
   defmodule OneArity do
-    def handle_activity(activity),
-      do: send(self(), {:handed_over, activity.data["id"]}) && {:ok, :one}
+    def handle_activity(activity) do
+      send(self(), {:handed_over, activity.data["id"]})
+      {:ok, :one}
+    end
   end
 
   defmodule CarriedOnTheActivity do
-    def handle_activity(activity),
-      do: send(self(), {:on_the_activity, activity.data_received}) && {:ok, :one}
+    def handle_activity(activity) do
+      send(self(), {:on_the_activity, activity.data_received})
+      {:ok, :one}
+    end
   end
 
   defp with_adapter(adapter) do

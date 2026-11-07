@@ -14,7 +14,6 @@ defmodule ActivityPub.Web.MlsMessagesTest do
   """
   use ActivityPub.Web.ConnCase, async: false
   import ActivityPub.Factory
-  import Tesla.Mock
   import Plug.Conn
   import Phoenix.ConnTest
 
@@ -29,7 +28,7 @@ defmodule ActivityPub.Web.MlsMessagesTest do
 
   # Insert an inbox activity (and, for wrapped types, its referenced object) addressed to `to_ap_id`.
   # opts: object_type | activity_type | published (iso8601 string, or nil to omit) | field (:to/:cc/:bto/:bcc/:audience)
-  defp insert_inbox_activity(to_ap_id, opts \\ []) do
+  defp insert_inbox_activity(to_ap_id, opts) do
     uniq = System.unique_integer([:positive])
     base = Utils.ap_base_url()
     field = to_string(opts[:field] || :to)

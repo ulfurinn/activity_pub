@@ -9,13 +9,9 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
   alias ActivityPub.Object
   alias ActivityPub.Federator.Transformer
   alias ActivityPub.Utils
-  alias ActivityPub.Federator.Fetcher
   alias ActivityPub.Test.HttpRequestMock
-  alias ActivityPub.Federator.Workers
 
-  import Mock
   import ActivityPub.Factory
-  import Tesla.Mock
 
   setup_all do
     Tesla.Mock.mock_global(fn env -> HttpRequestMock.request(env) end)
@@ -86,7 +82,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
         Map.put(data, "object", object)
         |> debug("precreate")
 
-      {:ok, %{data: object_data}} =
+      {:ok, %{data: _object_data}} =
         Transformer.handle_incoming(data)
         |> debug("postcreate")
     end
@@ -106,7 +102,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
         Map.put(data, "object", object)
         |> debug("precreate")
 
-      {:ok, %{data: object_data}} =
+      {:ok, %{data: _object_data}} =
         Transformer.handle_incoming(data)
         |> debug("postcreate")
 
@@ -159,7 +155,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
 
       assert object_data["sensitive"] == true
 
-      user = user_by_ap_id(object_data["actor"])
+      _user = user_by_ap_id(object_data["actor"])
       # assert user.note_count == 1
     end
 
@@ -694,7 +690,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
 
   @tag :todo
   test "take_emoji_tags/1" do
-    user = local_actor(%{emoji: %{"firefox" => "https://exampleorg.local/firefox.png"}})
+    user = %{emoji: %{"firefox" => "https://exampleorg.local/firefox.png"}}
 
     assert Transformer.take_emoji_tags(user) == [
              %{
