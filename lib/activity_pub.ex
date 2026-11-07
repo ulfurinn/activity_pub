@@ -1465,6 +1465,10 @@ defmodule ActivityPub do
       "published" => published,
       "context" => params[:context]
     })
+    # the rest of the addressing given, so the activity reaches the inboxes of those it names as its object does
+    |> Utils.maybe_put("cc", params[:cc])
+    |> Utils.maybe_put("bto", params[:bto])
+    |> Utils.maybe_put("bcc", params[:bcc])
   end
 
   #### Flag-related helpers
