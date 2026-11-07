@@ -32,4 +32,6 @@ activity_pub-*.tar
 .mix/
 ./data/
 .vscode
-/data
+
+.claude
+CLAUDE.md
