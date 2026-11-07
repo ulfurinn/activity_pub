@@ -40,9 +40,10 @@ defmodule ActivityPub.Actor do
   or `nil` if the object is anonymous.
 
   Note that since the URI must be publicly-dereferencable,
-  you should set this value to `ActivityPub.Federator.Adapter.base_url() <> ~p"/pub/actors/\#{username}"`.
-  This path is defined in `ActivityPub.Web.Endpoint` and serves data provided
-  by the functions in `ActivityPub.Federator.Adapter`.
+  you should set this value to `ActivityPub.Actor.actor_url(username)`, which
+  follows the configured `ActivityPub.Web.URLScheme` (`/pub/actors/:username` by default).
+  `ActivityPub.Web.Router` serves that path with data provided by the functions
+  in `ActivityPub.Federator.Adapter`.
 
   See section [3.1 Object Identifiers](https://www.w3.org/TR/activitypub/#obj-id)
   in the ActivityPub spec for more information on the format.
@@ -1132,10 +1133,20 @@ defmodule ActivityPub.Actor do
     end
   end
 
+  @doc """
+  The id of one of an actor's collections (`"inbox"`, `"outbox"`, `"followers"`, `"following"`): as the actor's document lists it, else as a child of its id.
+  """
+  def collection_url(%{data: %{} = data} = actor, which) do
+    case data[which] do
+      url when is_binary(url) -> url
+      _ -> "#{data["id"] || Map.get(actor, :ap_id)}/#{which}"
+    end
+  end
+
   def actor_url(%{preferred_username: username}), do: actor_url(username)
 
   def actor_url(username) when is_binary(username),
-    do: Utils.ap_base_url() <> "/actors/" <> username
+    do: ActivityPub.Web.URLs.actor_url(username)
 
   def actor?(%{data: data}), do: actor?(data)
 

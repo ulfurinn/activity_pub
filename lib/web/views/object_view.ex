@@ -6,6 +6,7 @@ defmodule ActivityPub.Web.ObjectView do
   alias ActivityPub.Utils
   alias ActivityPub.Federator.Transformer
   alias ActivityPub.Object
+  alias ActivityPub.Actor
   alias ActivityPub.Federator.Adapter
   alias ActivityPub.Web.Collections
 
@@ -59,7 +60,7 @@ defmodule ActivityPub.Web.ObjectView do
   # embed each activity's object from cache (resolved in one batched list_cached), not a SQL join
   defp outbox_collection(actor, opts) do
     Collections.collection(
-      "#{actor.ap_id}/outbox",
+      Actor.collection_url(actor, "outbox"),
       [
         fetch: fn page, limit ->
           Object.get_outbox_for_actor(actor, page, load_object: :cache, limit: limit)
@@ -72,9 +73,7 @@ defmodule ActivityPub.Web.ObjectView do
 
   # only for testing purposes
   def render("outbox.json", %{outbox: :shared_outbox} = params) do
-    ap_base_url = Utils.ap_base_url()
-
-    Collections.collection("#{ap_base_url}/shared_outbox",
+    Collections.collection(ActivityPub.Web.URLs.shared_outbox_url(),
       page: params[:page],
       fetch: fn page, limit ->
         Object.get_outbox_for_instance(page, load_object: :cache, limit: limit)
@@ -86,9 +85,7 @@ defmodule ActivityPub.Web.ObjectView do
   end
 
   def render("inbox.json", %{inbox: :shared_inbox} = params) do
-    ap_base_url = Utils.ap_base_url()
-
-    Collections.collection("#{ap_base_url}/shared_inbox",
+    Collections.collection(ActivityPub.Web.URLs.shared_inbox_url(),
       page: params[:page],
       fetch: fn page, limit ->
         Object.get_inbox_for_instance(page, load_object: :cache, limit: limit) |> render_objects()
@@ -99,7 +96,7 @@ defmodule ActivityPub.Web.ObjectView do
   end
 
   def render("inbox.json", %{actor: actor} = params) do
-    Collections.collection("#{actor.ap_id}/inbox",
+    Collections.collection(Actor.collection_url(actor, "inbox"),
       page: params[:page],
       fetch: fn page, limit ->
         Object.get_inbox_for_actor(actor, page, load_object: :cache, limit: limit)

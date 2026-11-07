@@ -1477,9 +1477,9 @@ defmodule ActivityPub.Object do
 
   def object_url(id) when is_binary(id) do
     if Utils.is_uid?(id) do
-      Utils.ap_base_url() <> "/objects/" <> id
+      ActivityPub.Web.URLs.object_url(id)
     else
-      Utils.ap_base_url() <> "/actors/" <> id
+      ActivityPub.Web.URLs.actor_url(id)
     end
   end
 
@@ -1490,10 +1490,14 @@ defmodule ActivityPub.Object do
 
   A group relay goes out as both shapes, since Lemmy and the threadiverse only accept the wrapped one while the Pleroma, Misskey and GoToSocial family only accept the other. Each copy needs its own id, or two different documents claim to be the same activity; but neither needs its own row, because the id decides which shape we render for a single stored activity.
 
-  Derived from the canonical id rather than minted separately, so the pair stays recognisably one thing, and so serving it is a path match rather than a lookup table.
+  Derived from the canonical id rather than minted separately, so the pair stays recognisably one thing, and so serving it is a path match rather than a lookup table: the URL scheme's `activity/0` template filled with the `uuid` of the id under `object/0`. `nil` for an id not minted under `object/0` (e.g. one the host supplied).
   """
-  def activity_object_url(canonical_ap_id) when is_binary(canonical_ap_id),
-    do: String.replace(canonical_ap_id, "/objects/", "/activity/")
+  def activity_object_url(canonical_ap_id) when is_binary(canonical_ap_id) do
+    case ActivityPub.Web.URLs.match(:object, canonical_ap_id) do
+      {:ok, %{"uuid" => uuid}} -> ActivityPub.Web.URLs.activity_url(uuid)
+      :error -> nil
+    end
+  end
 
   def activity_object_url(_), do: nil
 

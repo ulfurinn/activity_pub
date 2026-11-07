@@ -619,7 +619,6 @@ defmodule ActivityPub.Federator.APPublisher do
   end
 
   defp addressed_recipients(data) do
-    ap_base_url = Utils.ap_base_url()
     public_uris = ActivityPub.Config.public_uris()
 
     [
@@ -645,7 +644,7 @@ defmodule ActivityPub.Federator.APPublisher do
 
       # FIXME: temporary workaround for bad data
       %{data: %{"id" => id}} ->
-        String.starts_with?(id, ap_base_url)
+        ActivityPub.Web.URLs.local_path(id) != :error
 
       %{local: false} ->
         false
@@ -686,8 +685,6 @@ defmodule ActivityPub.Federator.APPublisher do
   def gather_webfinger_links(%{"id" => id}), do: gather_webfinger_links(id)
 
   def gather_webfinger_links(id) when is_binary(id) do
-    base_url = ActivityPub.Web.base_url()
-
     [
       %{
         "rel" => "self",
@@ -699,10 +696,17 @@ defmodule ActivityPub.Federator.APPublisher do
         "type" => "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"",
         "href" => id
       },
-      %{
-        "rel" => "http://ostatus.org/schema/1.0/subscribe",
-        "template" => base_url <> "/pub/remote_interaction?acct={uri}"
-      }
+      case ActivityPub.Web.URLs.remote_interaction_url() do
+        nil ->
+          nil
+
+        url ->
+          %{
+            "rel" => "http://ostatus.org/schema/1.0/subscribe",
+            "template" => url <> "?acct={uri}"
+          }
+      end
     ]
+    |> Enum.reject(&is_nil/1)
   end
 end

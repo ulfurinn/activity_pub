@@ -118,20 +118,30 @@ defmodule ActivityPub.Factory do
   def actor_factory(attrs \\ %{}) do
     username = sequence(:username, &"actor_#{&1}_#{Needle.UID.generate()}")
 
-    actor_object("https://mastodon.local/ap_api", username, attrs, false)
+    base_url = "https://mastodon.local/ap_api"
+
+    actor_object(
+      attrs[:ap_id] || base_url <> "/actors/#{username}",
+      base_url <> "/shared_inbox",
+      username,
+      attrs,
+      false
+    )
   end
 
   def local_actor_factory(attrs \\ %{}) do
-    ap_base_path = System.get_env("AP_BASE_PATH", "/pub")
     username = attrs[:username] || sequence(:username, &"username#{&1}")
 
-    actor_object(ActivityPub.Web.base_url() <> ap_base_path, username, attrs, true)
+    actor_object(
+      attrs[:ap_id] || ActivityPub.Web.URLs.actor_url(username),
+      ActivityPub.Web.URLs.shared_inbox_url(),
+      username,
+      attrs,
+      true
+    )
   end
 
-  defp actor_object(base_url, username, attrs, local?) do
-    id =
-      attrs[:ap_id] || base_url <> "/actors/#{username}"
-
+  defp actor_object(id, shared_inbox, username, attrs, local?) do
     data = %{
       "id" => id,
       "name" => sequence(:name, &"Test actor #{&1}"),
@@ -144,7 +154,7 @@ defmodule ActivityPub.Factory do
       "followers" => "#{id}/followers",
       "following" => "#{id}/following",
       "endpoints" => %{
-        "sharedInbox" => attrs[:shared_inbox] || "#{base_url}/shared_inbox"
+        "sharedInbox" => attrs[:shared_inbox] || shared_inbox
       }
     }
 

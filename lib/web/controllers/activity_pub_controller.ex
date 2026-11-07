@@ -32,11 +32,7 @@ defmodule ActivityPub.Web.ActivityPubController do
 
   # when action == :object
 
-  def ap_route_helper(uuid) do
-    ap_base_path = System.get_env("AP_BASE_PATH", "/pub")
-
-    "#{ActivityPub.Web.base_url()}#{ap_base_path}/objects/#{uuid}"
-  end
+  def ap_route_helper(uuid), do: ActivityPub.Web.URLs.object_url(uuid)
 
   def object(conn, %{"uuid" => uuid}) do
     cond do
@@ -229,11 +225,11 @@ defmodule ActivityPub.Web.ActivityPubController do
   end
 
   defp ulid_actor_path?(path) when is_binary(path),
-    do: String.contains?(path, ["/person/", "/group/", "/application/"])
+    do: match?({:ok, _, _}, ActivityPub.Web.URLs.match_actor_by_id(path))
 
   defp ulid_actor_path?(_), do: false
 
-  # ULID-based actor URLs (/pub/person|group|application/:id) resolve the actor by
+  # ULID-based actor URLs (the scheme's `actor_by_id/1`, /pub/person|group|...|application/:id by default) resolve the actor by
   # pointer id, then reuse the username-keyed serving/collection logic. The served actor JSON
   # carries the canonical (ULID) `id`, and `maybe_canonical_redirect` (in the username actions)
   # 301s any non-canonical URL form to the canonical one so remotes never dup the actor.
@@ -273,9 +269,9 @@ defmodule ActivityPub.Web.ActivityPubController do
   # defp local_tombstone_by_ap_id(conn, id) do
   @doc false
   def local_tombstone_by_ap_id(conn, id) do
-    with [segment | _] <- conn.path_info |> Enum.take_while(&(&1 != id)) |> Enum.reverse(),
+    with {:ok, type, ^id} <- ActivityPub.Web.URLs.match_actor_by_id(conn.request_path),
          {:ok, %Object{local: true, data: %{"type" => "Tombstone"}} = tombstone} <-
-           Object.get_cached(ap_id: "#{Utils.ap_base_url()}/#{segment}/#{id}") do
+           Object.get_cached(ap_id: ActivityPub.Web.URLs.actor_by_id_url(type, id)) do
       tombstone
     else
       _ -> nil

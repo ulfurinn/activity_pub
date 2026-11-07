@@ -31,7 +31,9 @@ defmodule ActivityPub.Utils do
 
   # def generate_context_id, do: generate_id("contexts")
 
-  def generate_object_id(generator \\ &UUID.generate/0), do: generate_id("objects", generator)
+  @doc "A new id for a local object or activity, under the URL scheme's `object/0` template."
+  def generate_object_id(generator \\ &UUID.generate/0),
+    do: ActivityPub.Web.URLs.object_url(generator.())
 
   def generate_id(type, generator \\ &UUID.generate/0),
     do: ap_base_url() <> "/#{type}/#{generator.()}"
@@ -164,25 +166,20 @@ defmodule ActivityPub.Utils do
 
   def activitypub_object_headers, do: [{"content-type", "application/activity+json"}]
 
-  @collections_segment "/collections/"
-
   @doc """
-  The stable, dereferenceable id for a collection: `{base}/collections/{type}/{uuid}`. A neutral URL
+  The stable, dereferenceable id for a collection: `{base}/collections/{type}/{uuid}` by default, per the URL scheme's `collection/0` template. A neutral URL
   helper — used for both store-backed (e.g. keyPackages) and adapter/extension-owned (e.g. featured)
   collections. `type` lets serving dispatch by pure path-parse; `uuid` identifies *which* collection
   (the owner actor's id for singleton-per-actor collections, or the collection's own id otherwise).
   """
   def collection_ap_id(type, uuid) when is_binary(type) and is_binary(uuid),
-    do: "#{ap_base_url()}#{@collections_segment}#{type}/#{uuid}"
+    do: ActivityPub.Web.URLs.collection_url(type, uuid)
 
   @doc "Inverse of `collection_ap_id/2`: parse a collection id into `{:ok, type, uuid}`, or `:error`."
   def parse_collection_ap_id(ap_id) when is_binary(ap_id) do
-    with [_base, rest] <- String.split(ap_id, @collections_segment, parts: 2),
-         [type, uuid] <- String.split(rest, "/", parts: 2),
-         true <- type != "" and uuid != "" and not String.contains?(uuid, ["/", "?", "#"]) do
-      {:ok, type, uuid}
-    else
-      _ -> :error
+    case ActivityPub.Web.URLs.match(:collection, ap_id) do
+      {:ok, %{"type" => type, "uuid" => uuid}} -> {:ok, type, uuid}
+      :error -> :error
     end
   end
 

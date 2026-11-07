@@ -91,7 +91,7 @@ defmodule ActivityPub.Web.ActorView do
           {&Actor.following_ap_ids(actor, &1, &2), fn -> Adapter.count_following(actor) end}
       end
 
-    Collections.collection("#{actor.ap_id}/#{which}",
+    Collections.collection(Actor.collection_url(actor, which),
       page: page,
       fetch: fetch,
       count: count,

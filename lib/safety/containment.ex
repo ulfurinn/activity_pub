@@ -170,7 +170,7 @@ defmodule ActivityPub.Safety.Containment do
     user_ap_id = actor.data["id"]
 
     x =
-      [user_ap_id, "#{user_ap_id}/followers"]
+      [user_ap_id, ActivityPub.Actor.collection_url(actor, "followers")]
       |> debug("me")
 
     y =

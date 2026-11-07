@@ -122,7 +122,7 @@ defmodule ActivityPub.Web.Plugs.EnsureHTTPSignaturePlug do
   end
 
   defp service_actor_alias_path(%{username: username}) when is_binary(username),
-    do: "#{URI.parse(ActivityPub.Utils.ap_base_url()).path}/actors/#{username}"
+    do: ActivityPub.Web.URLs.path(:actor, username: username)
 
   defp service_actor_alias_path(_), do: nil
 
