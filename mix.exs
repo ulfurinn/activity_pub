@@ -86,6 +86,9 @@ defmodule ActivityPub.MixProject do
       {:process_tree, "~> 0.3.0"},
       {:ex_machina, "~> 2.7", only: [:dev, :test]},
       {:mock, "~> 0.3.0", only: :test},
+      # `mock` pins `meck ~> 0.9.2`, which does not compile on OTP 29 (deprecated `catch` + `warnings_as_errors`)
+      {:meck, "~> 1.2", only: :test, override: true},
+      {:repatch, "~> 1.6", only: :test},
       {:excoveralls, "~> 0.10", only: :test},
       {:plug_http_validator, git: "https://github.com/bonfire-networks/plug_http_validator", branch: "pr-naive-datetime"},
       {

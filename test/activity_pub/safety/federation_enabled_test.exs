@@ -1,6 +1,5 @@
 defmodule ActivityPub.Web.FederationEnabledTest do
   use ActivityPub.DataCase
-  use Mneme
 
   alias ActivityPub.Config
 

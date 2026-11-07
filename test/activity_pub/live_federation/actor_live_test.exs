@@ -1,6 +1,5 @@
 defmodule ActivityPub.LiveFederation.ActorTest do
   use ActivityPub.Web.ConnCase, async: false
-  use Mneme
   import ActivityPub.Factory
 
   alias ActivityPub.Actor

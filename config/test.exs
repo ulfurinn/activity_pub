@@ -44,4 +44,4 @@ config :activity_pub, Oban,
 config :tesla, adapter: Tesla.Mock
 
 # Print only warnings and errors during test
-config :logger, level: :warn
+config :logger, level: :warning

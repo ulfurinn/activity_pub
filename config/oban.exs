@@ -1,3 +1,5 @@
+import Config
+
 # NOTE: you'll probably want to put these in your runtime config instead:
 config :activity_pub, Oban,
   queues: [
