@@ -43,5 +43,8 @@ config :activity_pub, Oban,
 
 config :tesla, adapter: Tesla.Mock
 
+# no DNS in tests: the fixtures' hosts resolve to a public address (see `ActivityPub.Test.SSRFResolver`)
+config :activity_pub, :ssrf, resolver: &ActivityPub.Test.SSRFResolver.getaddrs/3
+
 # Print only warnings and errors during test
 config :logger, level: :warning

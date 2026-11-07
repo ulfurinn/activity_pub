@@ -1,5 +1,5 @@
 defmodule ActivityPub.Safety.SignatureTest do
-  use ActivityPub.Web.ConnCase, async: true
+  use ActivityPub.Web.ConnCase, async: false
 
   import ActivityPub.Factory
   import ExUnit.CaptureLog

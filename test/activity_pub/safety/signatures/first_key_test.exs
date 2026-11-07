@@ -21,6 +21,8 @@ defmodule ActivityPub.Safety.FirstKeyTest do
     assert is_binary(published.keys), "the actor handed back holds the key it was just given"
   end
 
+  # makes its group with Bonfire's own fakes
+  @tag :bonfire
   test "a group with no key yet gets one too" do
     creator = Bonfire.Me.Fake.fake_user!()
     group = Bonfire.Classify.Simulate.fake_group!(creator)

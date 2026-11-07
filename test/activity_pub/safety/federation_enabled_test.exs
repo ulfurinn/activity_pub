@@ -3,12 +3,9 @@ defmodule ActivityPub.Web.FederationEnabledTest do
 
   alias ActivityPub.Config
 
+  # restores the setting, or removes it if it was not set: putting back a `nil` would leave federation in manual mode for the tests that run next
   setup do
-    orig = Config.get([:instance, :federating])
-
-    on_exit(fn ->
-      Config.put([:instance, :federating], orig)
-    end)
+    clear_config([:instance, :federating])
   end
 
   test "can disable federation entirely" do

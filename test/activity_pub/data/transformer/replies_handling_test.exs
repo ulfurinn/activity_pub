@@ -149,7 +149,7 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
 
       activity =
         file("fixtures/mastodon/mastodon-post-activity.json")
-        |> Poison.decode!()
+        |> Jason.decode!()
         |> Kernel.put_in(["object", "replies"], replies)
 
       %{activity: activity}

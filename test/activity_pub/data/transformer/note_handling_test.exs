@@ -439,7 +439,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
     test "it correctly processes messages with non-array to field" do
       data =
         file("fixtures/mastodon/mastodon-post-activity.json")
-        |> Poison.decode!()
+        |> Jason.decode!()
         |> Map.put("to", "https://www.w3.org/ns/activitystreams#Public")
         |> put_in(["object", "to"], "https://www.w3.org/ns/activitystreams#Public")
 
@@ -456,7 +456,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
     test "it correctly processes messages with non-array cc field" do
       data =
         file("fixtures/mastodon/mastodon-post-activity.json")
-        |> Poison.decode!()
+        |> Jason.decode!()
         |> Map.put("cc", "https://mastodon.local/users/admin/followers")
         |> put_in(["object", "cc"], "https://mastodon.local/users/admin/followers")
 
@@ -469,7 +469,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
     test "it correctly processes messages with weirdness in address fields" do
       data =
         file("fixtures/mastodon/mastodon-post-activity.json")
-        |> Poison.decode!()
+        |> Jason.decode!()
         |> Map.put("cc", ["https://mastodon.local/users/admin/followers", ["¿"]])
         |> put_in(["object", "cc"], ["https://mastodon.local/users/admin/followers", ["¿"]])
 
@@ -485,7 +485,7 @@ defmodule ActivityPub.Federator.Transformer.NoteHandlingTest do
            Code.ensure_loaded?(Earmark) do
         data =
           file("fixtures/misskey/mfm_x_format.json")
-          |> Poison.decode!()
+          |> Jason.decode!()
 
         assert {:ok, activity} = Transformer.handle_incoming(data)
 

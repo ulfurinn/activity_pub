@@ -5,8 +5,14 @@ import ActivityPub.Utils
 
 Repatch.setup()
 
+# tests of what only Bonfire's adapter does (`:bonfire`), or an adapter with E2EE support (`:e2ee`), are left out when testing with `ActivityPub.TestAdapter`
+host_only =
+  if ActivityPub.Federator.Adapter.adapter() == ActivityPub.TestAdapter,
+    do: [:bonfire, :e2ee],
+    else: []
+
 ExUnit.start(
-  exclude: [:skip, :todo, :fixme, :test_instance, :live_federation],
+  exclude: [:skip, :todo, :fixme, :test_instance, :live_federation] ++ host_only,
   capture_log: true
 )
 

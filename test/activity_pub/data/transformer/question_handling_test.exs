@@ -40,6 +40,8 @@ defmodule ActivityPub.Federator.Transformer.QuestionHandlingTest do
     assert object.data["id"] == bare["id"]
   end
 
+  # its reply is threaded the way Bonfire threads
+  @tag :bonfire
   test "Mastodon Question activity" do
     data = file("fixtures/mastodon/mastodon-question-activity.json") |> Jason.decode!()
 

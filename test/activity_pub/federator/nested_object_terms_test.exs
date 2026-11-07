@@ -195,6 +195,8 @@ defmodule ActivityPub.Federator.NestedObjects.TermsTest do
   end
 
   describe "config" do
+    # reads the host app's config (this library's own `config/activity_pub.exs` leaves the list to the code default)
+    @tag :bonfire
     test "has the fields to leave alone in the config file, under the same name as the option, the same as the code default" do
       configured = ActivityPub.Config.get([:nested_objects, :exclude_fields])
 

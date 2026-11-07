@@ -39,7 +39,7 @@ defmodule ActivityPub.ObjectListCachedTest do
     {:ok, counter} = Agent.start_link(fn -> 0 end)
 
     query_event =
-      (Bonfire.Common.Repo.config()[:telemetry_prefix] || [:bonfire, :repo]) ++ [:query]
+      (repo().config()[:telemetry_prefix] || [:bonfire, :repo]) ++ [:query]
 
     # attach AFTER the inserts, detach after the call → only list_cached's queries fall in the window
     :telemetry.attach(

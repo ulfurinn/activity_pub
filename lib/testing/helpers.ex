@@ -52,7 +52,7 @@ defmodule ActivityPub.Test.Helpers do
     if ActivityPub.Federator.Adapter.adapter() == Bonfire.Federate.ActivityPub.Adapter do
       Bonfire.Social.Graph.Follows.follow(user_by_ap_id(actor_1), user_by_ap_id(actor_2))
     else
-      ActivityPub.LocalActor.follow(actor_1, actor_2)
+      ActivityPub.TestAdapter.make_follow(actor_1, actor_2)
     end
   end
 
@@ -60,8 +60,7 @@ defmodule ActivityPub.Test.Helpers do
     if ActivityPub.Federator.Adapter.adapter() == Bonfire.Federate.ActivityPub.Adapter do
       Bonfire.Social.Graph.Follows.following?(user_by_ap_id(actor_1), user_by_ap_id(actor_2))
     else
-      # TODO
-      # ActivityPub.LocalActor.following?(actor_1, actor_2)
+      ActivityPub.TestAdapter.following?(actor_1, actor_2)
     end
   end
 
@@ -72,7 +71,7 @@ defmodule ActivityPub.Test.Helpers do
         current_user: user_by_ap_id(actor_1)
       )
     else
-      # TODO
+      ActivityPub.TestAdapter.block(actor_1, actor_2)
     end
   end
 
@@ -82,7 +81,7 @@ defmodule ActivityPub.Test.Helpers do
         current_user: user_by_ap_id(actor_1)
       )
     else
-      # TODO
+      ActivityPub.TestAdapter.blocked?(actor_1, actor_2)
     end
   end
 

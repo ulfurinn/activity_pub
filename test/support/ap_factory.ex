@@ -50,17 +50,42 @@ defmodule ActivityPub.Factory do
         username: user.character.username
       }
     else
+      attrs = Enum.into(attrs, %{})
+
+      # an actor that approves its followers by hand, as `TestAdapter` reads it
+      attrs =
+        if attrs[:request_before_follow],
+          do:
+            Map.update(
+              attrs,
+              :data,
+              %{"manuallyApprovesFollowers" => true},
+              &Map.put(&1, "manuallyApprovesFollowers", true)
+            ),
+          else: attrs
+
       actor = build(:local_actor, attrs)
 
-      {:ok, actor} =
+      {:ok, row} =
         ActivityPub.LocalActor.insert(%{
           local: true,
           data: actor.data,
-          keys: nil,
+          keys: attrs[:keys],
           username: actor.data["preferredUsername"]
         })
 
-      actor
+      {:ok, actor} = ActivityPub.Actor.get_cached(pointer: row.id)
+
+      # the shape the factory has with a host app's adapter: the actor, and the user it stands for
+      %{
+        id: row.id,
+        local: true,
+        actor: actor,
+        data: actor.data,
+        user: row,
+        keys: row.keys,
+        username: row.username
+      }
     end
   end
 
@@ -278,12 +303,40 @@ defmodule ActivityPub.Factory do
       }
       |> debug("base_data")
 
+    # who may see it, as a host app's boundaries would put it: "local" for nobody elsewhere, "mentions" for those in `to_circles` (or `to`)
+    data =
+      case attrs[:boundary] do
+        "local" ->
+          Map.put(data, "to", [])
+
+        "mentions" ->
+          Map.put(
+            data,
+            "to",
+            List.wrap(attrs[:to] || attrs[:to_circles]) |> Enum.map(&ActivityPub.Utils.ap_id/1)
+          )
+
+        _ ->
+          data
+      end
+
+    data =
+      merge_attributes(
+        data,
+        Map.get(
+          attrs,
+          :data,
+          Map.drop(attrs, [:actor, :status, :note, :boundary, :to, :to_circles, :reply_to])
+        )
+      )
+
     %ActivityPub.Object{
-      data:
-        merge_attributes(data, Map.get(attrs, :data, Map.drop(attrs, [:actor, :status, :note]))),
+      data: data,
       local: actor.local,
       public: ActivityPub.Utils.public?(data),
-      is_object: true
+      is_object: true,
+      # a local post is a record of the host app's, as `TestAdapter.link_to_host/1` makes one
+      pointer_id: if(actor.local, do: Needle.UID.generate())
     }
     |> debug("prepared object")
   end

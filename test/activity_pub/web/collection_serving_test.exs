@@ -88,6 +88,8 @@ defmodule ActivityPub.Web.CollectionServingTest do
   end
 
   describe "adapter-owned (featured / Pins)" do
+    # pins with Bonfire's own posts
+    @tag :bonfire
     test "GET serves the featured collection (pinned posts) as an OrderedCollection" do
       la = local_actor()
       user = la.user
