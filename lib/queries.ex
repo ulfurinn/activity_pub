@@ -167,6 +167,8 @@ defmodule ActivityPub.Queries do
         [o],
         fragment("(?)->>'inReplyTo' = ?", o.data, ^id)
       )
+      # the replies themselves, not an activity that carries an `inReplyTo` of its own next to the reply it wraps (a `Create` copying it from its object), which would list each reply twice
+      |> where([o], fragment("NOT ((?) \\? 'object')", o.data))
       |> ordered()
 
     if opts[:self_only] do

@@ -429,9 +429,8 @@ defmodule ActivityPub.Federator.Transformer.RepliesHandlingTest do
         Transformer.set_replies(object)
         |> debug("prepped")
 
-      # FIXME
-      assert Enum.sort([id2_activity, id3_activity]) == Enum.sort(prepped["replies"]["items"])
-      # assert Enum.sort([id2_object, id3_object]) == Enum.sort(prepped["replies"]["items"])
+      # the replies are the posts, not the `Create`s of them
+      assert Enum.sort([id2_object, id3_object]) == Enum.sort(prepped["replies"]["items"])
     end
   end
 end
