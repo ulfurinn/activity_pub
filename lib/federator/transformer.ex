@@ -2009,9 +2009,28 @@ defmodule ActivityPub.Federator.Transformer do
         refetch_instead_of_relayed(inner_activity, opts)
 
       :none ->
-        maybe_refetch_relayed_activity(inner_activity, opts)
+        # nothing vouches for the relayed copy, so it has to at least be one its actor's origin could have made: a copy naming an id on another host than its actor's (or its object's owner's) is forged, whoever relays it
+        with :ok <- check_relayed_origin(inner_activity) do
+          maybe_refetch_relayed_activity(inner_activity, opts)
+        end
     end
   end
+
+  defp check_relayed_origin(%{"actor" => actor} = activity) when not is_nil(actor) do
+    actor_id = Object.actor_id_from_data(activity)
+
+    cond do
+      is_binary(activity["id"]) and
+          not ActivityPub.Safety.Containment.contain_origin(activity["id"], activity) ->
+        error(activity["id"], "a relayed activity whose id is not on the origin of its actor")
+
+      true ->
+        # the same rule as for an object embedded in a delivery (FEP-fe34)
+        check_embedded_origin(activity["object"], actor_id, from_inbox: true)
+    end
+  end
+
+  defp check_relayed_origin(_activity), do: :ok
 
   # An object integrity proof (FEP-8b32) first, then a legacy LD signature. Either one means the origin made this, so the relay could not have altered or invented it; and, unlike a refetch, it still works for what the origin no longer has (a deletion).
   defp relayed_authenticity(activity, opts) do

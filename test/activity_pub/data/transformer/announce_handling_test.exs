@@ -410,7 +410,12 @@ defmodule ActivityPub.Federator.Transformer.AnnounceHandlingTest do
 
     test "refuses an inlined activity forged from another origin" do
       group = insert(:actor)
-      author = insert(:actor)
+
+      # on another host than the group's: the factory puts every actor on the same one, where an id on the group's host would be on the author's origin too
+      author =
+        insert(:actor, %{
+          ap_id: "https://elsewhere.local/users/author-#{System.unique_integer([:positive])}"
+        })
 
       # the group claims to relay an activity whose id is on ITS OWN host while attributing it to a
       # different actor — the forgery a relay could otherwise perform
