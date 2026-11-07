@@ -66,6 +66,26 @@ config :activity_pub, :repo, MyApp.Repo
 
 5. Inject AP routes to your router by adding `use ActivityPub.Web.Router` to your app's router module
 
+   The routes live under `/pub` (`/pub/actors/:username`, `/pub/objects/:uuid`, ...) by default. To use your own URLs, e.g. to keep those of an implementation you are replacing, implement `ActivityPub.Web.URLScheme`, overriding only what differs from the default:
+
+   ```elixir
+   defmodule MyApp.APUrls do
+     use ActivityPub.Web.URLScheme
+
+     def actor, do: "/:username"        # its inbox, outbox, followers and following go under it
+     def actor_by_id(_type), do: nil    # don't mount the by-pointer-id actor routes
+     def object_paths, do: ["/posts/*path"]  # serve ids the app chose, looked up by URL
+     def shared_inbox, do: "/inbox"
+     def aliases, do: []                # nor the /users/:username interop routes
+   end
+   ```
+
+   and select it at compile time; both the router and the ids the library mints follow it:
+
+   ```
+   config :activity_pub, :url_scheme, MyApp.APUrls
+   ```
+
 6. Copy the default AP config to your app's confix.exs
 
 ```
