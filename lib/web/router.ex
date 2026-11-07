@@ -1,8 +1,32 @@
 defmodule ActivityPub.Web.Router do
-  defmacro __using__(_) do
-    ap_base_path = System.get_env("AP_BASE_PATH", "/pub")
+  @moduledoc """
+  Mounts the library's routes into the host's router: `use ActivityPub.Web.Router`.
+
+  The paths come from the configured `ActivityPub.Web.URLScheme` (see `ActivityPub.Web.URLs.route_specs/1`), so they match the ids the library mints. The host router must define the `:browser` and `:load_authorization` pipelines.
+
+  `url_scheme: Module` mounts another scheme's routes, for testing one: the ids the library mints still follow the configured scheme, so a router serving any other would not find them.
+  """
+
+  defmacro __using__(opts) do
+    scheme =
+      Keyword.get(opts, :url_scheme, ActivityPub.Web.URLs.scheme()) |> Macro.expand(__CALLER__)
+
+    Code.ensure_compiled!(scheme)
+
+    routes =
+      for {verb, path, controller, action, pipelines} <- ActivityPub.Web.URLs.route_specs(scheme) do
+        quote do
+          scope "/" do
+            pipe_through(unquote(pipelines))
+            unquote({verb, [], [path, controller, action]})
+          end
+        end
+      end
 
     quote do
+      # recompile the host router when the scheme changes
+      require unquote(scheme)
+
       # should be already defined in the actual router which is calling this macro
       # pipeline :browser do
       #   plug(:accepts, ["html"])
@@ -53,126 +77,7 @@ defmodule ActivityPub.Web.Router do
         get("/host-meta", WebFingerController, :host_meta)
       end
 
-      scope unquote(ap_base_path), ActivityPub.Web do
-        pipe_through(:activity_json)
-        pipe_through(:load_authorization)
-        pipe_through(:signed_activity_pub_fetch)
-
-        get("/actors/:username/followers", ActivityPubController, :followers)
-        get("/actors/:username/following", ActivityPubController, :following)
-        get("/actors/:username/outbox", ActivityPubController, :outbox)
-        # lib-owned generic collections (e.g. keyPackages per MLS-over-AP). `uuid` is the owner
-        # actor's id for singleton-per-actor collections, or the collection's own id otherwise.
-        get("/collections/:type/:uuid", ActivityPubController, :collection)
-        # maybe return inbox, or error saying only POST supported
-        get("/actors/:username/inbox", ActivityPubController, :maybe_inbox)
-        # MLS-over-ActivityPub `mls:messages`: owner-only, the actor's received MLS activities
-        get("/actors/:username/mls_messages", ActivityPubController, :mls_messages)
-
-        # ULID-based actor collections, one family per AP actor type (resolved by pointer id)
-        for seg <- ~w(person group organization service application) do
-          get("/#{seg}/:id/followers", ActivityPubController, :followers_by_id)
-          get("/#{seg}/:id/following", ActivityPubController, :following_by_id)
-          get("/#{seg}/:id/outbox", ActivityPubController, :outbox_by_id)
-          get("/#{seg}/:id/inbox", ActivityPubController, :maybe_inbox_by_id)
-          get("/#{seg}/:id/mls_messages", ActivityPubController, :mls_messages_by_id)
-        end
-      end
-
-      scope unquote(ap_base_path), ActivityPub.Web do
-        pipe_through(:activity_json_or_html)
-        pipe_through(:load_authorization)
-        pipe_through(:signed_activity_pub_fetch)
-
-        get("/objects/:uuid", ActivityPubController, :object)
-        # note: singular is not canonical
-        get("/object/:uuid", ActivityPubController, :object)
-
-        # the SAME stored activity as `/objects/:uuid`, rendered in its FEP-1b12 shape: a group relay is delivered as both shapes, and each copy has to re-fetch to the shape it was sent in
-        get("/activity/:uuid", ActivityPubController, :activity_object)
-
-        get("/actors/:username", ActivityPubController, :actor)
-        # options("/actors/:username", ActivityPubController, :actor)
-        # note: singular is not canonical
-        get("/actor/:username", ActivityPubController, :actor)
-
-        # ULID-based actor documents, one per AP actor type (resolved by pointer id)
-        for seg <- ~w(person group organization service application) do
-          get("/#{seg}/:id", ActivityPubController, :actor_by_id)
-        end
-
-        # maybe return the public outbox
-        get("/shared_outbox", ActivityPubController, :shared_outbox)
-        # maybe return inbox, or error saying only POST supported
-        get("/shared_inbox", ActivityPubController, :maybe_inbox)
-      end
-
-      scope "/", ActivityPub.Web do
-        pipe_through(:activity_json_or_html)
-        pipe_through(:load_authorization)
-        pipe_through(:signed_activity_pub_fetch)
-
-        # URLs for interop with Mastodon clients / AP testing tools
-        # get("/api/v1/timelines/public", ActivityPubController, :outbox) # maybe return the public outbox 
-        get("/users/:username", ActivityPubController, :actor)
-      end
-
-      scope "/", ActivityPub.Web do
-        pipe_through(:activity_json)
-
-        pipe_through(:load_authorization)
-        pipe_through(:signed_activity_pub_incoming)
-
-        # URLs for interop with  some AP testing tools 
-        post("/users/:username", IncomingActivityPubController, :inbox)
-        post("/users/:username/inbox", IncomingActivityPubController, :inbox)
-
-        # post("/users/:username/outbox", IncomingActivityPubController, :only_get_error!)  # return error saying not supported
-        post("/users/:username/outbox", C2SOutboxController, :create)
-      end
-
-      scope unquote(ap_base_path), ActivityPub.Web do
-        pipe_through(:activity_json)
-        pipe_through(:load_authorization)
-        pipe_through(:signed_activity_pub_incoming)
-
-        # inbox
-        post("/actors/:username/inbox", IncomingActivityPubController, :inbox)
-        post("/shared_inbox", IncomingActivityPubController, :shared_inbox)
-
-        # outbox
-        # post("/actors/:username/outbox", IncomingActivityPubController, :only_get_error!) # return error saying not supported
-        post("/actors/:username/outbox", C2SOutboxController, :create)
-
-        # ULID-based actor inbox/outbox, one per AP actor type (actions key on signature/session,
-        # not the path id). NB: the path param must NOT be `:id` as Phoenix merges path params into
-        # `conn.params`, so `:id` clobbered the posted AP document's own "id" (every activity
-        # delivered to such an inbox got stored under the ACTOR's id; the second one then
-        # collided with "already exists"). Controllers also read the doc from `conn.body_params`.
-        for seg <- ~w(person group organization service application) do
-          post("/#{seg}/:actor_id/inbox", IncomingActivityPubController, :inbox)
-          post("/#{seg}/:actor_id/outbox", C2SOutboxController, :create)
-        end
-
-        # proxy for c2s to get remote objects
-        post("/proxy_remote_object", ProxyRemoteObjectController, :proxy)
-        get("/proxy_remote_object", ProxyRemoteObjectController, :proxy)
-      end
-
-      scope unquote(ap_base_path), ActivityPub.Web do
-        pipe_through(:browser)
-
-        get("/remote_interaction", RedirectController, :remote_interaction)
-        post("/remote_interaction", RedirectController, :remote_interaction)
-      end
-
-      scope "/", ActivityPub.Web do
-        pipe_through(:browser)
-
-        # alias /authorize_interaction to /pub/remote_interaction because mastodon seems to hardcode that URL 
-        get("/authorize_interaction", RedirectController, :remote_interaction)
-        post("/authorize_interaction", RedirectController, :remote_interaction)
-      end
+      unquote_splicing(routes)
     end
   end
 end
