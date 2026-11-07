@@ -26,6 +26,16 @@ defmodule ActivityPub.Web.RedirectController do
       |> halt()
   end
 
+  # an object served at its id, under a template of the URL scheme's `object_paths/0` with no uuid
+  def object(conn, _params) do
+    object = ActivityPub.Object.get_cached!(ap_id: ActivityPub.Web.URLs.request_url(conn))
+
+    (object && redirect_to_adapter(conn, object)) ||
+      conn
+      |> send_resp(404, "Object not found")
+      |> halt()
+  end
+
   def actor(conn, %{"username" => username}) do
     redirect_to_adapter(conn, username) ||
       conn

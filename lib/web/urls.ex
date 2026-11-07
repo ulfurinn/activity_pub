@@ -158,6 +158,9 @@ defmodule ActivityPub.Web.URLs do
     end
   end
 
+  @doc "The URL a request was made to, without its query: the id of an object served at its id."
+  def request_url(%{request_path: path}), do: base_url() <> path
+
   @doc "The path of a URL on this instance (or a path, as is), or `:error` for another host's."
   def local_path("/" <> _ = path), do: {:ok, path}
 

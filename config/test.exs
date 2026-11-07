@@ -29,6 +29,8 @@ config :activity_pub, ActivityPub.Web.Endpoint,
 
 config :activity_pub, :adapter, ActivityPub.TestAdapter
 
+config :activity_pub, :url_scheme, ActivityPub.Test.URLScheme
+
 config :activity_pub, :repo, ActivityPub.TestRepo
 
 config :activity_pub,

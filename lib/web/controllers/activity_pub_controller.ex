@@ -34,13 +34,14 @@ defmodule ActivityPub.Web.ActivityPubController do
 
   def ap_route_helper(uuid), do: ActivityPub.Web.URLs.object_url(uuid)
 
-  def object(conn, %{"uuid" => uuid}) do
+  # by its uuid where the route names one, else (e.g. under a glob in the URL scheme's `object_paths/0`) by the request URL, which is the id of an object served at its id
+  def object(conn, params) do
     cond do
       get_format(conn) == "html" ->
-        ActivityPub.Web.RedirectController.object(conn, %{"uuid" => uuid})
+        ActivityPub.Web.RedirectController.object(conn, params)
 
       Config.federating?() != false ->
-        json_object_with_cache(conn, uuid)
+        json_object_with_cache(conn, params["uuid"] || ActivityPub.Web.URLs.request_url(conn))
 
       true ->
         Utils.error_json(conn, "this instance is not currently federating", 403)
@@ -138,10 +139,10 @@ defmodule ActivityPub.Web.ActivityPubController do
         opts
       )
     else
-      debug(id, "query by ap_id based on UUID")
+      debug(id, "query by ap_id based on UUID or URL")
 
       ap_id =
-        ap_route_helper(id)
+        if(String.contains?(id, "://"), do: id, else: ap_route_helper(id))
         |> debug("resolved AP id")
 
       maybe_object_json(Object.get_cached!(ap_id: ap_id) |> debug("object from cache"), opts)
