@@ -127,9 +127,15 @@ defmodule ActivityPub.Federator.Adapter do
   def handle_activity(activity, opts \\ []) do
     adapter = adapter()
 
-    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :handle_activity, 2),
+    if(Code.ensure_loaded?(adapter) and function_exported?(adapter, :handle_activity, 2),
       do: adapter.handle_activity(activity, opts),
       else: adapter.handle_activity(activity)
+    )
+    # the callback may answer a bare `:ok`, which callers take as handled with nothing of the adapter's own to show for it
+    |> case do
+      :ok -> {:ok, nil}
+      other -> other
+    end
   end
 
   @doc """

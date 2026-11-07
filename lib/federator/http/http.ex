@@ -76,7 +76,7 @@ defmodule ActivityPub.Federator.HTTP do
   end
 
   defp process_request_options(options) do
-    {_adapter, opts} = Connection.adapter_options([])
+    {_adapter, opts} = Connection.adapter_options(Connection.adapter(), [])
     Keyword.merge(opts, options)
   end
 

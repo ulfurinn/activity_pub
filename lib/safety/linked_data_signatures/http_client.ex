@@ -8,15 +8,13 @@ defmodule ActivityPub.Safety.LinkedDataSignatures.HTTPClient do
   @max_redirects 3
 
   def client(headers, _url, _options) do
-    adapter = Application.get_env(:tesla, :adapter, {Tesla.Adapter.Finch, name: Bonfire.Finch})
-
     Tesla.client(
       [
         {Tesla.Middleware.Headers, headers},
         {Tesla.Middleware.FollowRedirects, max_redirects: @max_redirects},
         ActivityPub.Safety.ORF
       ],
-      Connection.adapter_options(adapter, [])
+      Connection.adapter_options(Connection.adapter(), [])
     )
   end
 end

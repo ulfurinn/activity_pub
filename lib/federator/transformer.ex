@@ -961,7 +961,9 @@ defmodule ActivityPub.Federator.Transformer do
   end
 
   defp locale_name(locale) do
-    with {:ok, localised} <- Cldr.LocaleDisplay.display_name(locale, locale: locale) do
+    # `ex_cldr_locale_display` is optional: without it, the locale code stands in for its name
+    with true <- Code.ensure_loaded?(Cldr.LocaleDisplay),
+         {:ok, localised} <- Cldr.LocaleDisplay.display_name(locale, locale: locale) do
       String.capitalize(localised)
     else
       _ -> String.upcase(locale)

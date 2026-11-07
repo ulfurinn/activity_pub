@@ -5,12 +5,14 @@ defmodule ActivityPub.Federator.HTTP.Connection do
   Specifies connection options for HTTP requests
   """
 
-  def new(opts \\ []) do
-    adapter = Application.get_env(:tesla, :adapter, {Tesla.Adapter.Finch, name: Bonfire.Finch})
+  @doc "The Tesla adapter configured for `:tesla` (Finch, using the pool named `Bonfire.Finch`, by default)."
+  def adapter,
+    do: Application.get_env(:tesla, :adapter, {Tesla.Adapter.Finch, name: Bonfire.Finch})
 
+  def new(opts \\ []) do
     Tesla.client(
       [],
-      adapter_options(adapter, Keyword.get(opts, :adapter, []))
+      adapter_options(adapter(), Keyword.get(opts, :adapter, []))
       # |> debug("adapter_options")
     )
   end

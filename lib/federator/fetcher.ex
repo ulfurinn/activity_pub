@@ -834,9 +834,13 @@ defmodule ActivityPub.Federator.Fetcher do
           e ->
             error(e, "Could not fallback to finding the object in headers")
 
-            with {:ok, doc} <- Floki.parse_document(data),
-                 link <- Floki.find(doc, "link[type='application/activity+json']"),
-                 [linked_object_id] when linked_object_id != id <- Floki.attribute(link, "href") do
+            with true <- is_binary(data),
+                 link <-
+                   data
+                   |> LazyHTML.from_document()
+                   |> LazyHTML.query("link[type='application/activity+json']"),
+                 [linked_object_id] when linked_object_id != id <-
+                   LazyHTML.attribute(link, "href") do
               info(link, "fetch activity+json link found in html")
               fetch_remote_object_from_id(linked_object_id, options)
             else
