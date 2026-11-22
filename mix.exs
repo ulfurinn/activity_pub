@@ -80,7 +80,7 @@ defmodule ActivityPub.MixProject do
       {:mfm_parser, git: "https://akkoma.dev/AkkomaGang/mfm-parser.git", optional: true},
       {:remote_ip, "~> 1.1"},
       # converts internationalized hosts to A-labels for WebFinger (see `ActivityPub.Utils.ascii_host/1`)
-      {:idna, "~> 7.1"},
+      {:idna, "~> 8.0"},
       {:hammer, "~> 7.0"},
       {:cachex, "~> 4.0"},
       {:process_tree, "~> 0.3.0"},

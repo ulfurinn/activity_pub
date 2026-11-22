@@ -9,6 +9,14 @@ defmodule ActivityPub.UtilsAsciiHostTest do
     assert Utils.ascii_host("bücher.example:4000") == "xn--bcher-kva.example:4000"
   end
 
+  # without STD3 rules, idna 8 carries these into the A-label: "bü/x.example" would become "xn--b/x-3ya.example"
+  for char <- [" ", "/", "?", "#", "@", "\\", "\r\n", "_"] do
+    test "a host with #{inspect(char)} in a non-ASCII label is invalid, so left as it is" do
+      host = "bü#{unquote(char)}x.example"
+      assert Utils.ascii_host(host) == host
+    end
+  end
+
   # remote hosts are attacker input: an oversized `xn--` label beside a non-ASCII one must be dealt with quickly, not decoded for seconds or minutes
   test "a host with a huge xn-- label next to a non-ASCII label returns quickly" do
     host = "bücher.xn--" <> String.duplicate("a", 4000) <> ".example"

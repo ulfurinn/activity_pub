@@ -118,7 +118,8 @@ defmodule ActivityPub.Utils do
         end
 
       try do
-        to_string(:idna.encode(String.to_charlist(name), uts46: true)) <> port
+        # `std3_rules`: without it, characters a hostname can't have (`/`, `?`, `@`, spaces, ...) are carried into the A-label
+        to_string(:idna.encode(String.to_charlist(name), uts46: true, std3_rules: true)) <> port
       catch
         # `:idna` reports an invalid label by exiting, it has no error tuple API
         :exit, reason ->

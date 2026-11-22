@@ -27,7 +27,7 @@
   "hpax": {:hex, :hpax, "1.1.0", "782931867cc23217c68fb5f68fe1a11f5e7544c7fda82c8a7019a5df5a4a1cdf", [:mix], [], "hexpm", "0b8d0f05832f55571d65ac720f79bf8994138ffbb133209dc4685eae0ad456a8"},
   "http_signatures": {:git, "https://github.com/bonfire-networks/http_signatures", "7b1b0ed2df1a9c6cc75ca03a07e91e73fb6c1e3e", []},
   "http_structured_field": {:hex, :http_structured_field, "0.1.4", "11d6a5f84c8854eaa6630d07ab0c0881a39d7e7e650382aeb30e52ab4757c900", [:mix], [{:nimble_parsec, "~> 1.1", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm", "fa5f58496bdbf3f7df239d1d24074d1709403cf977bfffd2286e8af5ca20e2d0"},
-  "idna": {:hex, :idna, "7.1.0", "1067a13043538129602d2f2ce6899d8713125c7d19734aa557ce2e3ea55bd4f1", [:rebar3], [], "hexpm", "6ae959a025bf36df61a8cab8508d9654891b5426a84c44d82deaffd6ddf8c71f"},
+  "idna": {:hex, :idna, "8.0.0", "bb8795a18aadce07dce6a3928c4fcae74ac66eaf95186b46ea11598bccc719f9", [:rebar3], [], "hexpm", "e0c5ce7846f14515af66142a55b8097d5f46d10df9235e781f168bef5622bcf9"},
   "inet_cidr": {:hex, :inet_cidr, "1.0.9", "e0ef72a2942529da78c8e4147d53f2ef5f6f5293335c3637b0fdf83c012cc816", [:mix], [], "hexpm", "172da15ff7cf635b1feaf14f5818be28c811b37cc5fb7c5f7c01058c1c1066cc"},
   "jason": {:hex, :jason, "1.4.5", "2e3a008590b0b8d7388c20293e9dcc9cf3e5d642fd2a114e4cbbb52e595d940a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0 or ~> 3.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684"},
   "jcs": {:hex, :jcs, "0.2.0", "e0524c23b576e8247f9f5f09d1b82cb3f92c7b132932b82d5d656461831c6c99", [:mix], [{:jason, "~> 1.4", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "f52e86571f56fab695682bf0ab7fd697768acb20de16b30809e9654d1ec1c9dd"},
