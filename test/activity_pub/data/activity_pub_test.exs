@@ -322,11 +322,9 @@ defmodule ActivityPubTest do
 
       assert unannounce_activity.data["to"] == [
                actor.data["followers"],
-               announce_activity.data["actor"]
+               announce_activity.data["actor"],
+               "https://www.w3.org/ns/activitystreams#Public"
              ]
-
-      # Public stays in `cc`, where the Undo addresses it (`Object.normalise_to/1`)
-      assert unannounce_activity.data["cc"] == ["https://www.w3.org/ns/activitystreams#Public"]
 
       assert unannounce_activity.data["type"] == "Undo"
 
