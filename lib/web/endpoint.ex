@@ -54,8 +54,13 @@ defmodule ActivityPub.Web.Endpoint do
     signing_salt: "i4A5AOWF"
   )
 
-  if Code.ensure_compiled(ActivityPub.Web.TestRouter) ==
-       {:module, ActivityPub.Web.TestRouter} do
-    plug(ActivityPub.Web.TestRouter)
+  # called at runtime: the router depends on modules that depend on this endpoint, so waiting for it at compile time can deadlock, and `Code.ensure_compiled/1` then leaves it out without an error
+  if Mix.env() == :test do
+    plug(:test_router)
+
+    defp test_router(conn, _opts) do
+      router = ActivityPub.Web.TestRouter
+      router.call(conn, router.init([]))
+    end
   end
 end
