@@ -11,8 +11,11 @@ host_only =
     do: [:bonfire, :e2ee],
     else: []
 
+# the rate limiter is compiled out under `:test` unless `ENABLE_RATE_LIMIT=yes`
+rate_limit = if System.get_env("ENABLE_RATE_LIMIT") == "yes", do: [], else: [:rate_limit]
+
 ExUnit.start(
-  exclude: [:skip, :todo, :fixme, :test_instance, :live_federation] ++ host_only,
+  exclude: [:skip, :todo, :fixme, :test_instance, :live_federation] ++ host_only ++ rate_limit,
   capture_log: true
 )
 
