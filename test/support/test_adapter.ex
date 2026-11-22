@@ -25,7 +25,8 @@ defmodule ActivityPub.TestAdapter do
       ap_id: actor.data["id"],
       username: actor.username,
       deactivated: false,
-      pointer_id: actor.id
+      pointer_id: actor.id,
+      pointer: actor
     }
   end
 
