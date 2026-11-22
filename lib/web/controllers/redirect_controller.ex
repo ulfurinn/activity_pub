@@ -67,9 +67,14 @@ defmodule ActivityPub.Web.RedirectController do
       end
     else
       _ ->
-        conn
-        |> send_resp(404, "Remote actor or object not found")
-        |> halt
+        # conn
+        # |> send_resp(404, "Remote actor or object not found")
+        # |> halt
+        redirect_back_with_error(
+          conn,
+          "Remote actor or object not found",
+          remote_interaction_path()
+        )
     end
   end
 
@@ -91,68 +96,132 @@ defmodule ActivityPub.Web.RedirectController do
         _ -> nil
       end
 
-    if me_domain &&
-         (me_domain == local_hostname or me_domain == local_host or me_domain == "localhost") do
-      debug(me, "Local user on remote interaction form, redirecting to sign in")
-      login_path = ActivityPub.Config.get([:instance, :local_login_redirect_uri], "/login?go=")
-      go = if is_binary(object), do: "#{URI.encode_www_form(object)}", else: ""
+    cond do
+      !address_with_server?(me) ->
+        # no request is made: there is no server to ask
+        redirect_back_with_error(
+          conn,
+          "Add your server after your username, eg. @alice@example.social",
+          remote_interaction_path(
+            type: Map.get(params, "type") || Map.get(outgoing, "type"),
+            url: object
+          )
+        )
 
-      conn |> redirect(to: "#{login_path}#{go}") |> halt()
-    else
-      with {:ok, fingered} <-
-             ActivityPub.Federator.WebFinger.finger(me,
-               # local user reaching out: check outgoing (:ghost) blocks, scoped to the acting
-               # user/actor so per-user blocks apply
-               direction: :out,
-               current_user: conn.assigns[:current_user],
-               by_actor: conn.assigns[:current_actor]
-             )
-             |> debug("fingered"),
-           %{"subscribe_address" => subscribe_address}
-           when is_binary(subscribe_address) <- fingered,
-           true <- String.contains?(subscribe_address, "{uri}"),
-           url <- String.replace(subscribe_address, "{uri}", object) do
-        case url do
-          "http" <> _ = url ->
+      # if me_domain &&
+      me_domain &&
+          (me_domain == local_hostname or me_domain == local_host or me_domain == "localhost") ->
+        debug(me, "Local user on remote interaction form, redirecting to sign in")
+        login_path = ActivityPub.Config.get([:instance, :local_login_redirect_uri], "/login?go=")
+        go = if is_binary(object), do: "#{URI.encode_www_form(object)}", else: ""
+
+        conn |> redirect(to: "#{login_path}#{go}") |> halt()
+
+      # else
+      true ->
+        with {:ok, fingered} <-
+               ActivityPub.Federator.WebFinger.finger(me,
+                 # local user reaching out: check outgoing (:ghost) blocks, scoped to the acting
+                 # user/actor so per-user blocks apply
+                 direction: :out,
+                 current_user: conn.assigns[:current_user],
+                 by_actor: conn.assigns[:current_actor]
+               )
+               |> debug("fingered"),
+             %{"subscribe_address" => subscribe_address}
+             when is_binary(subscribe_address) <- fingered,
+             true <- String.contains?(subscribe_address, "{uri}"),
+             url <- String.replace(subscribe_address, "{uri}", object) do
+          case url do
+            "http" <> _ = url ->
+              conn
+              |> redirect(external: url)
+
+            url ->
+              conn
+              |> redirect(to: url)
+          end
+        else
+          %{"id" => url} ->
+            error(
+              url,
+              "Remote didn't provide a `subscribe_address` in WebFinger, redirecting to profile instead"
+            )
+
             conn
             |> redirect(external: url)
 
-          url ->
-            conn
-            |> redirect(to: url)
+          other ->
+            error(other)
+
+            # conn
+            # |> send_resp(
+            #   404,
+            #   "Sorry, your actor or remote interaction URL was not found"
+            # )
+            # |> halt
+            redirect_back_with_error(
+              conn,
+              "Couldn't find your account, check the address, eg. alice@example.social",
+              remote_interaction_path(
+                type: Map.get(params, "type") || Map.get(outgoing, "type"),
+                url: object
+              )
+            )
         end
-      else
-        %{"id" => url} ->
-          error(
-            url,
-            "Remote didn't provide a `subscribe_address` in WebFinger, redirecting to profile instead"
-          )
-
-          conn
-          |> redirect(external: url)
-
-        other ->
-          error(other)
-
-          conn
-          |> send_resp(
-            404,
-            "Sorry, your actor or remote interaction URL was not found"
-          )
-          |> halt
-      end
     end
   end
 
   def remote_interaction(conn, params) do
     error(params, "unrecognised params")
 
-    conn
-    |> send_resp(
-      404,
-      "Sorry, your actor or remote interaction URL was not found"
+    # conn
+    # |> send_resp(
+    #   404,
+    #   "Sorry, your actor or remote interaction URL was not found"
+    # )
+    # |> halt
+    redirect_back_with_error(
+      conn,
+      "Sorry, your actor or remote interaction URL was not found",
+      remote_interaction_path()
     )
-    |> halt
+  end
+
+  # `user@domain`, with an optional leading `@`
+  defp address_with_server?(me) when is_binary(me) do
+    case me |> String.trim() |> String.trim_leading("@") |> String.split("@") do
+      [user, domain] -> user != "" and domain != ""
+      _ -> false
+    end
+  end
+
+  defp address_with_server?(_), do: false
+
+  # a failure goes back to the form with the reason, as the other browser forms do: a bare 404 with no content type makes mobile browsers offer to download it
+  defp redirect_back_with_error(conn, message, fallback) do
+    conn
+    |> put_flash(:error, message)
+    |> redirect(to: same_host_referer(conn) || fallback)
+    |> halt()
+  end
+
+  # only a page on this host, so the redirect can't be pointed at another site
+  defp same_host_referer(conn) do
+    with [referer | _] <- get_req_header(conn, "referer"),
+         %URI{host: host, path: "/" <> _ = path, query: query} when host == conn.host <-
+           URI.parse(referer) do
+      URI.to_string(%URI{path: path, query: query})
+    else
+      _ -> nil
+    end
+  end
+
+  defp remote_interaction_path(params \\ []) do
+    case Enum.filter(params, fn {_, v} -> is_binary(v) end) do
+      [] -> "/remote_interaction"
+      params -> "/remote_interaction?" <> URI.encode_query(params)
+    end
   end
 
   defp redirect_to_adapter(conn, object_username_or_id) do

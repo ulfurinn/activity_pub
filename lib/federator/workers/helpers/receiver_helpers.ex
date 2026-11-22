@@ -174,6 +174,7 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
           authenticated: :integrity_proof,
           signed_by: controller
         )
+        |> reachable_if_ok(params)
 
       :none ->
         maybe_process_unsigned_cascade(headers, params, false)
@@ -223,7 +224,7 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
 
     if fetch_fresh_public_key? and HTTPSignatures.validate(headers) do
       Untangle.debug("HTTP signature valid after key re-fetch, processing activity")
-      handle_received(params, from_inbox: true)
+      handle_received(params, from_inbox: true) |> reachable_if_ok(params)
     else
       # the actor's own HTTP signature, which still fails: a signature that does not hold. One by somebody else (a relay passing it on) says nothing about this actor either way
       invalid? =
@@ -249,6 +250,7 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
                 authenticated: :ld_signature,
                 signed_by: creator
               )
+              |> reachable_if_ok(params)
             else
               Untangle.warn(
                 creator,
@@ -276,9 +278,17 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
     end
   end
 
+  # A host counts as reachable only once a delivery from it is verified: one nobody signed says nothing about the host it names.
+  defp reachable_if_ok({:ok, _} = result, params) do
+    ActivityPub.Instances.handle_successful_contact(params["actor"])
+    result
+  end
+
+  defp reachable_if_ok(result, _params), do: result
+
   # the actor an HTTP signature's key belongs to, mapped as the signature plug maps it (the key id without its fragment and known suffixes), or `nil` when there is none to read
   defp http_signer(headers) do
-    # (`extract_signature/1` loops on headers with no signature in them)
+    # (skips parsing when there is no signature header; `extract_signature/1` would return `{:error, :no_signature}`, which the `else` below also handles)
     with true <- is_binary(headers["signature"]) or is_binary(headers["signature-input"]),
          %{"keyId" => key_id} when is_binary(key_id) <- HTTPSignatures.extract_signature(headers),
          {:ok, actor_id} <- ActivityPub.Safety.Keys.key_id_to_actor_id(key_id) do
@@ -298,23 +308,21 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
 
   # Fallback logic for activities without valid HTTP or LD signatures: tries refetching from source, validates follow responses locally, or accepts anyway when the config says so (`accept_anyway?/1`).
   defp maybe_process_unsigned_fallback(params, invalid?) do
-    # Accept/Reject of Follow activities have unfetchable URLs (fragment identifiers like #accepts/follows/)
-    # but can be safely validated against our local Follow activity records.
-    # This mirrors how Mastodon handles it: https://github.com/mastodon/mastodon/blob/main/app/lib/activitypub/activity/accept.rb
-    is_follow_response? =
-      is_in(params["type"], ["Accept", "Reject"]) and
-        is_map(params["object"]) and params["object"]["type"] == "Follow"
+    # An Accept that names its Follow by id alone (or by one we never sent) is let through when it comes from an actor we have a Follow pending to and is addressed to the user who sent it: that Follow is what it answers.
+    # A Follow written out inside an Accept or Reject is no proof of anything (anyone can write one), so those are verified like any other unsigned activity: by what the origin serves, else by config.
+    is_follow_response? = answers_pending_follow?(params)
 
     if is_follow_response? do
       Untangle.debug(
-        "Accept/Reject of Follow - validating against local Follow activity (URLs are typically unfetchable)"
+        "Accept of Follow by id - validating against local Follow activity (URLs are typically unfetchable)"
       )
 
       handle_received(params, from_inbox: true)
     else
       case refetch_from_origin(params) do
         {:ok, object} ->
-          {:ok, object}
+          # its origin serves it: the host is there
+          reachable_if_ok({:ok, object}, params)
 
         e ->
           if accept_anyway?(invalid?) do
@@ -338,6 +346,15 @@ defmodule ActivityPub.Federator.Worker.ReceiverHelpers do
       end
     end
   end
+
+  # only an Accept naming its Follow by id: one with a Follow written out has to be verified at its origin
+  defp answers_pending_follow?(
+         %{"type" => "Accept", "actor" => actor, "object" => object} = params
+       )
+       when is_binary(object),
+       do: match?(%Object{}, Object.get_pending_follow(actor, params["to"]))
+
+  defp answers_pending_follow?(_params), do: false
 
   # unsigned and invalid are told apart: accepting what nobody signed is not accepting what a signature says is not what was signed
   defp accept_anyway?(true = _invalid?), do: ActivityPub.Safety.accept_invalid?()

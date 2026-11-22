@@ -35,6 +35,13 @@ defmodule ActivityPub.Utils do
   def generate_object_id(generator \\ &UUID.generate/0),
     do: ActivityPub.Web.URLs.object_url(generator.())
 
+  @doc """
+  An id for a document of `owner_id`'s that has none: on the owner's host rather than ours (FEP-fe34: an id belongs to its actor's origin), and the same for the same document, so a redelivery finds it again.
+  """
+  def derived_id(owner_id, %{"type" => type} = document) when is_binary(owner_id),
+    do:
+      "#{owner_id}##{String.downcase(type)}-#{hash(:erlang.term_to_binary(document, [:deterministic]))}"
+
   def generate_id(type, generator \\ &UUID.generate/0),
     do: ap_base_url() <> "/#{type}/#{generator.()}"
 
@@ -390,6 +397,10 @@ defmodule ActivityPub.Utils do
   def some_identifier(:ap_id, %{ap_id: id}) do
     id
   end
+
+  # an object handed over whole (eg. by an account export) is rendered as it is and not cached: its JSON depends on the caller's options (an export leaves out `@context`), so it must not be stored where an ordinary request for the object would be answered from
+  # matched by name rather than `%ActivityPub.Object{}`, which would make this module depend on Object at compile time
+  def some_identifier(:json, %{__struct__: ActivityPub.Object}), do: nil
 
   # def some_identifier(_, object) do
   #   uid(object) || ap_id(object)
@@ -1002,6 +1013,35 @@ defmodule ActivityPub.Utils do
       {:ok, service_actor}
     end
   end
+
+  @doc """
+  The actor a request is made as: the `current_actor` the caller gave (`{:ok, actor}`), else the first local user or actor among those it passed for the checks (`:current_user`, `:by_actor`, `:user_id`, `:user_ids`), as `{:ok, actor}`. `nil` when it passed none, or none is local, and the service actor then acts. The remote server learns which of our users made the request.
+  """
+  def current_actor_from_opts(opts) do
+    opts[:current_actor] ||
+      Enum.find_value(
+        [opts[:current_user], opts[:by_actor], opts[:user_id]] ++ List.wrap(opts[:user_ids]),
+        &local_actor_for/1
+      )
+  end
+
+  @doc "`{:ok, actor}` for a local actor given as the actor, its AP id, or a user (or its id), else `nil`."
+  def local_actor_for(nil), do: nil
+  def local_actor_for(%ActivityPub.Actor{local: true} = actor), do: {:ok, actor}
+  def local_actor_for(%ActivityPub.Actor{}), do: nil
+
+  def local_actor_for("http" <> _ = ap_id),
+    do: local_only(ActivityPub.Actor.get_cached(ap_id: ap_id))
+
+  def local_actor_for(passed) do
+    case uid(passed) do
+      id when is_binary(id) -> local_only(ActivityPub.Actor.get_cached(pointer: id))
+      _ -> nil
+    end
+  end
+
+  defp local_only({:ok, %ActivityPub.Actor{local: true}} = found), do: found
+  defp local_only(_), do: nil
 
   def service_actor!() do
     with {:ok, service_actor} <-

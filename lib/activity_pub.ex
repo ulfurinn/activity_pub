@@ -74,6 +74,10 @@ defmodule ActivityPub do
       %Object{} = object ->
         {:ok, object}
 
+      # the tag stays as it is (`error/1` would turn it into text), so the worker can cancel the job
+      {:error, :already_exists} = already_exists ->
+        already_exists
+
       {:error, error} when is_binary(error) ->
         error(error)
 
@@ -180,8 +184,16 @@ defmodule ActivityPub do
          params,
          opts
        ) do
+    # addressed to the group alone unless the caller says otherwise: a group hosted here tells its other members too (`to` its members collection, `cc` and `bcc` as it sees fit)
     data =
-      %{"type" => type, "actor" => actor_id, "to" => [group_id], "object" => group_id}
+      %{
+        "type" => type,
+        "actor" => actor_id,
+        "to" => params[:to] || [group_id],
+        "object" => group_id
+      }
+      |> Utils.maybe_put("cc", params[:cc])
+      |> Utils.maybe_put("bcc", params[:bcc])
       |> Utils.maybe_put("id", Map.get(params, :activity_id))
 
     with {:ok, activity} <-
@@ -202,6 +214,13 @@ defmodule ActivityPub do
           optional(atom()) => any()
         }) ::
           {:ok, Object.t()} | {:error, any()}
+  # The id of an activity built here when none was given: ours is minted on our host as always; one standing for an actor elsewhere (`local: false`, eg. their answer replayed without the activity they sent) is derived from that actor, as `Transformer.handle_incoming/2` does for one that arrives with no id, so it is never on our host.
+  defp built_activity_id(params, actor_id, document) do
+    if Map.get(params, :local, true) != false or not is_binary(actor_id),
+      do: Object.object_url(Map.get(params, :pointer)),
+      else: Utils.derived_id(actor_id, document)
+  end
+
   def accept(params, opts \\ []) do
     with {:ok, accept_activity, adapter_object, _accepted_activity} <-
            accept_activity(params, opts) do
@@ -223,12 +242,19 @@ defmodule ActivityPub do
          data <-
            incoming_activity(opts, %{"object" => accepted_activity.data}, %{"to" => to}) ||
              %{
-               "id" => params[:activity_id] || Object.object_url(Map.get(params, :pointer)),
                "to" => to,
                "type" => "Accept",
                "actor" => actor_id,
                "object" => accepted_activity.data
-             },
+             }
+             |> Utils.maybe_put("bcc", params[:bcc])
+             |> then(
+               &Map.put(
+                 &1,
+                 "id",
+                 params[:activity_id] || built_activity_id(params, actor_id, &1)
+               )
+             ),
          # Check if this is a QuoteRequest and create QuoteAuthorization
          data <-
            if(type == "QuoteRequest",
@@ -272,12 +298,18 @@ defmodule ActivityPub do
     with data <-
            incoming_activity(opts, %{"object" => object}, %{"to" => to}) ||
              %{
-               "id" => params[:activity_id] || Object.object_url(Map.get(params, :pointer)),
                "to" => to,
                "type" => "Reject",
                "actor" => actor.data["id"],
                "object" => object
-             },
+             }
+             |> then(
+               &Map.put(
+                 &1,
+                 "id",
+                 params[:activity_id] || built_activity_id(params, actor.data["id"], &1)
+               )
+             ),
          %Object{data: %{"type" => type}} = activity_to_reject <-
            Object.get_cached!(ap_id: object) |> debug("activity_to_reject"),
          {:ok, activity} <-
@@ -330,6 +362,8 @@ defmodule ActivityPub do
     else
       {:ok, %Object{} = object} -> {:ok, object}
       %Object{} = object -> {:ok, object}
+      # the tag stays as it is (`error/1` would turn it into text), so the worker can cancel the job
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end
@@ -368,6 +402,7 @@ defmodule ActivityPub do
          activity <- Map.put(activity, :pointer, adapter_object) do
       {:ok, activity}
     else
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end
@@ -410,13 +445,18 @@ defmodule ActivityPub do
              Map.get(params, :pointer),
              opts
            ),
+         # `skip_delivery` stores the announce, so it's listed in the actor's outbox, without sending it to anyone, eg. for posts brought in by an account import, which their followers already saw
          :ok <-
-           maybe_federate(actor, activity,
-             data_received:
-               relayable_received_document(
-                 object,
-                 # given, or on the activity as the adapter was handed it
-                 opts[:data_received] || Object.received_document(object)
+           if(opts[:skip_delivery],
+             do: :ok,
+             else:
+               maybe_federate(actor, activity,
+                 data_received:
+                   relayable_received_document(
+                     object,
+                     # given, or on the activity as the adapter was handed it
+                     opts[:data_received] || Object.received_document(object)
+                   )
                )
            ),
          {:ok, adapter_object} <- Adapter.maybe_handle_activity(activity, opts),
@@ -425,6 +465,7 @@ defmodule ActivityPub do
     else
       {:ok, %Object{} = object} -> {:ok, object}
       %Object{} = object -> {:ok, object}
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end
@@ -516,13 +557,23 @@ defmodule ActivityPub do
            incoming_activity(opts, %{"object" => object}) ||
              Map.merge(
                %{
-                 "id" => params[:id] || params[:activity_id] || Utils.generate_object_id(),
                  "to" => to,
                  "type" => "Update",
                  "actor" => Map.get(actor, :data, actor)["id"],
                  "object" => object
                },
                params[:additional] || %{}
+             )
+             |> then(
+               &Map.put_new(
+                 &1,
+                 "id",
+                 params[:id] || params[:activity_id] ||
+                   if(Map.get(params, :local, true) != false,
+                     do: Utils.generate_object_id(),
+                     else: built_activity_id(params, &1["actor"], &1)
+                   )
+               )
              ),
          {:ok, activity} <-
            Object.insert(
@@ -567,6 +618,7 @@ defmodule ActivityPub do
     else
       {:ok, %Object{} = object} -> {:ok, object}
       %Object{} = object -> {:ok, object}
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end
@@ -616,7 +668,32 @@ defmodule ActivityPub do
   Generates and federates a `Remove` activity removing `object` from the collection `target`.
   See `add/2`.
   """
-  def remove(%{actor: actor, object: object, target: _target} = params, opts \\ []) do
+  def remove(params, opts \\ [])
+
+  # A `Remove` naming where it removes from as its `origin`, with no collection (`target`): Mobilizon's removal of a member, whose `object` is the Member URL (the id of the `Join` that made them) and `origin` the group. Addressed as the caller says (`to`, `cc`, `bcc`).
+  def remove(%{actor: actor, object: object, origin: origin} = params, opts)
+      when not is_map_key(params, :target) do
+    data =
+      %{
+        "type" => "Remove",
+        "actor" => Utils.ap_id(actor),
+        "object" => Utils.ap_id(object),
+        "origin" => Utils.ap_id(origin),
+        "to" => params[:to] || []
+      }
+      |> Utils.maybe_put("cc", params[:cc])
+      |> Utils.maybe_put("bcc", params[:bcc])
+      |> Utils.maybe_put("id", Map.get(params, :activity_id))
+
+    with {:ok, activity} <-
+           Object.insert(data, Map.get(params, :local, true), Map.get(params, :pointer), opts),
+         :ok <- maybe_federate(actor, activity),
+         {:ok, adapter_object} <- Adapter.maybe_handle_activity(activity, opts) do
+      {:ok, Map.put(activity, :pointer, adapter_object)}
+    end
+  end
+
+  def remove(%{actor: actor, object: object, target: _target} = params, opts) do
     apply_collection_activity("Remove", :remove, params, actor, object, opts)
   end
 
@@ -785,11 +862,19 @@ defmodule ActivityPub do
   end
 
   defp local_actor_ap_id(uuid) do
-    case Actor.get_cached(pointer: uuid) do
-      {:ok, %{local: true} = actor} -> {:ok, actor.ap_id}
+    case Utils.local_actor_for(uuid) do
+      {:ok, actor} -> {:ok, actor.ap_id}
       _ -> :error
     end
   end
+
+  # Moved to `Utils.local_actor_for/1`, which does the same for an id:
+  # defp local_actor_ap_id(uuid) do
+  #   case Actor.get_cached(pointer: uuid) do
+  #     {:ok, %{local: true} = actor} -> {:ok, actor.ap_id}
+  #     _ -> :error
+  #   end
+  # end
 
   def delete(object, is_local? \\ nil, opts \\ [])
 
@@ -860,8 +945,26 @@ defmodule ActivityPub do
         is_local?,
         opts
       ) do
+    # A public object may have reached anyone, so its `Delete` is public, which sends it to all the actor's followers. One that was not public only reached who it was addressed to, so its `Delete` goes to them alone, plus who the caller adds in `bcc` (eg. the followers allowed to see it)
+    public? = Utils.public?(object.data)
+
     to =
-      (object.data["to"] || []) ++ (object.data["cc"] || []) ++ [ActivityPub.Config.public_uri()]
+      if public?,
+        do:
+          (object.data["to"] || []) ++
+            (object.data["cc"] || []) ++ [ActivityPub.Config.public_uri()],
+        else: List.wrap(object.data["to"])
+
+    cc = if public?, do: nil, else: List.wrap(object.data["cc"])
+
+    bcc =
+      if public?,
+        do: opts[:bcc],
+        else:
+          Enum.uniq(
+            List.wrap(object.data["bto"]) ++
+              List.wrap(object.data["bcc"]) ++ List.wrap(opts[:bcc])
+          )
 
     # `keep_object: true` publishes the `Delete` without deleting the object here, for a moderator REMOVING it from where it was posted (the threadiverse's mod "remove", marked by `summary`): it leaves the object where else it lives, so tombstoning our own copy would delete what was only removed
     with {:ok, _object} <-
@@ -876,8 +979,9 @@ defmodule ActivityPub do
                "actor" => opts[:subject] || actor,
                "object" => id,
                "to" => to,
-               "bcc" => opts[:bcc]
+               "bcc" => bcc
              }
+             |> Utils.maybe_put("cc", cc)
              |> Utils.maybe_put("summary", opts[:summary])
              |> Utils.maybe_put("audience", opts[:audience]),
          # the local record it stands for, when the caller gives one (eg. a moderator's removal and its moderation record)
@@ -987,6 +1091,7 @@ defmodule ActivityPub do
          activity <- Map.put(activity, :pointer, adapter_object) do
       {:ok, activity}
     else
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error, "Could not withdraw the report")
     end
   end
@@ -1199,7 +1304,12 @@ defmodule ActivityPub do
     })
   end
 
-  # A group's boost goes to its followers only, as its other Announces do and as Lemmy's community Announce does: addressing the author costs one more delivery and maybe a fetch back from their server, and their server still learns of it when someone there follows the group. A person's boost is addressed to the author so their server can tell them.
+  # A top-level group's boost goes to its followers only, as its other Announces do and as Lemmy's community Announce does: addressing the author costs one more delivery and maybe a fetch back from their server, and their server still learns of it when someone there follows the group. A person's boost is addressed to the author so their server can tell them.
+  # A group that has a parent (a topic or subgroup, which names it with `broader`) does address the author: a member on another server who follows the group but not the topic would otherwise never get the post back, and their server could not file it under its copy of the topic. Other members there still don't get it.
+  defp boost_cc(%{data: %{"type" => "Group", "broader" => broader}}, object)
+       when is_binary(broader) and broader != "",
+       do: [object.data["attributedTo"] || object.data["actor"]]
+
   defp boost_cc(%{data: %{"type" => "Group"}}, _object), do: []
 
   defp boost_cc(_actor, object), do: [object.data["attributedTo"] || object.data["actor"]]
@@ -1243,12 +1353,19 @@ defmodule ActivityPub do
          %Object{data: %{} = announce_data} = activity,
          activity_id
        ) do
+    # the Undo reaches who the Announce reached: Public goes in `to` (as Mastodon addresses its own) only when the Announce named it, so undoing a followers-only boost is not sent to Public
+    public? =
+      Utils.has_as_public?(List.wrap(announce_data["to"]) ++ List.wrap(announce_data["cc"]))
+
     data = %{
       "type" => "Undo",
       "actor" => ap_id,
       "object" => activity.data,
-      "to" => [actor.data["followers"], activity.data["actor"]],
-      "cc" => [ActivityPub.Config.public_uri()],
+      # "to" => [actor.data["followers"], activity.data["actor"]],
+      # "cc" => [ActivityPub.Config.public_uri()],
+      "to" =>
+        [actor.data["followers"], activity.data["actor"]] ++
+          if(public?, do: [ActivityPub.Config.public_uri()], else: []),
       "context" => announce_data["context"]
     }
 
@@ -1338,6 +1455,7 @@ defmodule ActivityPub do
     else
       {:ok, %Object{} = object} -> {:ok, object}
       %Object{} = object -> {:ok, object}
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end
@@ -1377,6 +1495,7 @@ defmodule ActivityPub do
     else
       {:ok, %Object{} = object} -> {:ok, object}
       %Object{} = object -> {:ok, object}
+      {:error, :already_exists} = already_exists -> already_exists
       error -> error(error)
     end
   end

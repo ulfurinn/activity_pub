@@ -393,6 +393,11 @@ defmodule ActivityPub.Federator.APPublisher do
         debug(reason, "delivery to #{inbox} refused before sending")
         {:cancel, reason}
 
+      # our own per-host limit refused it outside a job (inside one it snoozes): the host has said nothing, so it isn't marked unreachable
+      {:error, :rate_limited} = limited ->
+        warn(inbox, "delivery refused by our rate limit for the host")
+        limited
+
       {_post_result, response} when is_binary(response) or is_atom(response) ->
         # unless params[:unreachable_since], do: Instances.set_unreachable(inbox) -- recorded either way, see above
         Instances.set_unreachable(inbox)
@@ -505,6 +510,10 @@ defmodule ActivityPub.Federator.APPublisher do
 
         is_public? || actor.data["followers"] in tos ->
           get_external_followers_except(actor, :publish, addressed_pointer_ids)
+
+        # A non-public `Delete` already names who may have the object (see `ActivityPub.delete/3`), and the object is gone by now, so there is no one left to look up
+        activity_data["type"] == "Delete" ->
+          []
 
         true ->
           # optionally send it to a subset of followers

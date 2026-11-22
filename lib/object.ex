@@ -290,7 +290,8 @@ defmodule ActivityPub.Object do
   @doc false
   def insert(params, local?, pointer \\ nil, opts \\ [])
       when is_map(params) and is_boolean(local?) do
-    with activity_id <- Ecto.UUID.generate(),
+    with :ok <- not_our_id_from_elsewhere(params, local?, opts),
+         activity_id <- Ecto.UUID.generate(),
          params <-
            normalize_params(params, activity_id, pointer) |> drop_json_ld_context(local?),
          :ok <- Actor.check_actor_is_active(params["actor"]),
@@ -370,6 +371,10 @@ defmodule ActivityPub.Object do
         # {:ignore, "Do not federate due to local boundaries and filters"}
         :ignore
 
+      {:ignore, reason} = ignore ->
+        warn(params["id"], reason)
+        ignore
+
       {:error,
        %Ecto.Changeset{
          errors: [
@@ -384,11 +389,14 @@ defmodule ActivityPub.Object do
             _ -> params["id"]
           end
 
+        # logged here so operators see which id it was, and returned tagged so a caller can tell a redelivery from a failure that a later attempt may fix (the worker cancels the job rather than retrying it)
         if existing_id do
           error(e, "Object or activity already exists: #{existing_id}")
         else
           error(e, "Object or activity already exists (id unknown)")
         end
+
+        {:error, :already_exists}
 
       error ->
         info(params, "Error while trying to insert these params")
@@ -396,6 +404,21 @@ defmodule ActivityPub.Object do
         {:error, "Error while trying to save the object for federation"}
     end
   end
+
+  # An id on our host is ours to mint (FEP-fe34), so a document from elsewhere naming itself with one is not stored as theirs: as a remote row it would stand in for what we hold under that id. Read on the id as received, since every row has one after `normalize_params/3`. A copy of one of ours, signed by us and relayed back (eg. by a group), is ours and may be stored.
+  defp not_our_id_from_elsewhere(%{"id" => id}, false = _local?, opts) when is_binary(id) do
+    base_url = ActivityPub.Web.base_url()
+
+    with true <- String.starts_with?(id, base_url),
+         {_authenticated, signed_by} = Safety.authentication(opts),
+         false <- is_binary(signed_by) and String.starts_with?(signed_by, base_url) do
+      {:ignore, "a document from elsewhere under an id on our host"}
+    else
+      _ -> :ok
+    end
+  end
+
+  defp not_our_id_from_elsewhere(_params, _local?, _opts), do: :ok
 
   # a received row is stored without its `@context`, the activity's and its embedded object's: nothing reads it from a stored row, and a signed document, where it counts, is kept as received in `data_received`
   defp drop_json_ld_context(params, true = _local?), do: params
@@ -1501,19 +1524,101 @@ defmodule ActivityPub.Object do
 
   def activity_object_url(_), do: nil
 
-  def get_follow_activity(follow_object, followed) do
+  @doc "The Follow of ours that an Accept or Reject answers: the one its `object` names, else (for an Accept, which gives `to`) the one we have pending to the answering actor, see `get_pending_follow/2`."
+  def get_follow_activity(follow_object, followed, to \\ nil) do
     with object_id when not is_nil(object_id) <- get_ap_id(follow_object),
-         {:ok, activity} <- get_cached(ap_id: object_id) do
+         {:ok, activity} <- get_cached(ap_id: object_id),
+         # an activity of ours answers only for the actor it was sent to: anybody else's Accept or Reject of it is not one
+         true <- answerable_by?(activity, followed) do
       {:ok, activity}
     else
+      # a refusal a retry cannot change (the ids are public, so anybody can answer with one): cancelled, not retried
+      false ->
+        reason = "The follow was not sent to the actor that answered it"
+        error(false, reason)
+        {:cancel, reason}
+
       # Can't find the activity. This might be a Mastodon 2.3 "Accept"
       nil ->
         with %{} = activity <- fetch_latest_activity(follow_object["actor"], followed, "Follow") do
           {:ok, activity}
         end
 
+      # (the id is one we never gave: some servers answer with a Follow of their own making, or with only its id)
       e ->
-        error(e, "Could not find a matching follow")
+        case get_pending_follow(followed, to) do
+          %Object{} = activity -> {:ok, activity}
+          _ -> error(e, "Could not find a matching follow")
+        end
+    end
+  end
+
+  # Whether `answerer` is the actor `activity` was sent to: the actor it names as its `object` (a Follow). For an activity of ours that is not addressed to its object, the one who rules on it: the group named as the `audience` or `target` of a moderation activity (a `Lock`, a `Block`, a removal's `Delete`), or the author of the post a `QuoteRequest` asks to quote.
+  defp answerable_by?(%Object{data: data} = activity, answerer) do
+    answerer_id = get_ap_id(answerer)
+
+    is_binary(answerer_id) and
+      (get_ap_id(data["object"]) == answerer_id or
+         (activity.local == true and rules_on?(data, answerer_id)) or
+         (activity.local == true and moderator_on_group_host?(data, answerer_id)))
+  end
+
+  # A group's moderators answer a `Join` of ours in its name (Mobilizon sends the Accept or Reject of a join to a moderated group from the moderator's own account, not from the group actor, and lists no moderators to check against). Only for a `Join`, and only from an account on the very host of the group joined: that server speaks for its group anyway (it could send the answer as the group), and what such an answer settles is our own pending request. An account on another host never answers for it.
+  defp moderator_on_group_host?(%{"type" => "Join", "object" => group}, answerer_id) do
+    with group_id when is_binary(group_id) <- get_ap_id(group),
+         %URI{host: host, port: port} when is_binary(host) and host != "" <- URI.parse(group_id),
+         %URI{host: ^host, port: ^port} <- URI.parse(answerer_id) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp moderator_on_group_host?(_data, _answerer_id), do: false
+
+  defp rules_on?(%{"type" => "QuoteRequest", "object" => quoted}, answerer_id) do
+    with quoted_id when is_binary(quoted_id) <- get_ap_id(quoted),
+         {:ok, %Object{data: quoted_data}} <- get_cached(ap_id: quoted_id) do
+      get_ap_id(actor_from_data(quoted_data)) == answerer_id
+    else
+      _ -> false
+    end
+  end
+
+  defp rules_on?(%{"type" => type} = data, answerer_id)
+       when type in ["Lock", "Block", "Delete"] do
+    answerer_id in (List.wrap(data["audience"] || data["target"]) |> Enum.map(&get_ap_id/1))
+  end
+
+  defp rules_on?(_data, _answerer_id), do: false
+
+  @doc "The Follow of ours that is still pending to the actor `followed`, sent by one of the actors `to` names (an id, or a map or actor holding one). `nil` when there is none, so an answer from an actor we never followed, or addressed to somebody else, matches nothing."
+  def get_pending_follow(followed, to) do
+    with followed_id when is_binary(followed_id) <- get_ap_id(followed) do
+      to
+      |> List.wrap()
+      |> Enum.map(&get_ap_id/1)
+      |> Enum.filter(&is_binary/1)
+      |> Enum.find_value(fn follower_id ->
+        case fetch_latest_activity(follower_id, followed_id, "Follow") do
+          %Object{local: true, data: %{"state" => "pending"}} = follow -> follow
+          _ -> nil
+        end
+      end)
+    else
+      _ -> nil
+    end
+  end
+
+  @doc "Whether an actor of ours follows the actor `followed`, and was accepted: one query that only checks for a Follow of ours to it in the state an Accept leaves it in."
+  def accepted_local_follow?(followed) do
+    with followed_id when is_binary(followed_id) <- get_ap_id(followed) do
+      Queries.by_type("Follow")
+      |> Queries.by_object_id(followed_id)
+      |> where([a], a.local == true and fragment("(?)->>'state' = 'accept'", a.data))
+      |> repo().exists?()
+    else
+      _ -> false
     end
   end
 

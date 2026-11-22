@@ -429,14 +429,33 @@ defmodule ActivityPub.Federator.Adapter do
   defp default_collection_total(_collection), do: 0
 
   @doc """
+  A collection of another instance that we fetched for the host to apply, eg. a group's members (see `ActivityPub.Federator.Workers.RemoteFetcherWorker`, op `fetch_collection`). `collection` is a map of its `:id`, `:type` (as the caller named it), `:owner` (the AP id of whoever the collection belongs to) and `:user_id` (the local user it was read as), and `items` is what it lists, as it lists it. The host routes it by type to whoever claims that type. Optional callback, polyfilled as `{:ok, :ignored}`.
+  """
+  @callback handle_remote_collection(map(), list()) :: any()
+  def handle_remote_collection(collection, items) do
+    if function_exported?(adapter(), :handle_remote_collection, 2),
+      do: adapter().handle_remote_collection(collection, items),
+      else: {:ok, :ignored}
+  end
+
+  @doc """
   Whether to serve the items of a collection, or only how many there are (`totalItems`).
 
-  `subject` is a Collection `%Object{}`, or the `%Actor{}` whose `followers` are asked for, and `kind` is the collection type (`"members"`, `"followers"`, ...). Optional callback, polyfilled as `true`: a host answers `false` for a collection whose list it does not want to publish, such as the roster of a group. See `ActivityPub.Web.Collections.collection/2` (`:listed?`).
+  `subject` is a Collection `%Object{}`, or the `%Actor{}` whose `followers` are asked for, `kind` is the collection type (`"members"`, `"followers"`, ...), and `requester` is the `%Actor{}` that signed the request, or `nil` for an unsigned one: a host may list to some requesters only (a group's members to its members). Optional callback, polyfilled as `true`: a host answers `false` for a collection whose list it does not want to publish to that requester, such as the roster of a group. See `ActivityPub.Web.Collections.collection/2` (`:listed?`).
   """
-  @callback items_listed?(Object.t() | Actor.t(), binary()) :: boolean()
-  def items_listed?(subject, kind) do
-    not function_exported?(adapter(), :items_listed?, 2) or
-      adapter().items_listed?(subject, kind) != false
+  @callback items_listed?(Object.t() | Actor.t(), binary(), Actor.t() | nil) :: boolean()
+  def items_listed?(subject, kind, requester \\ nil) do
+    # was `not function_exported?(adapter(), :items_listed?, 2) or adapter().items_listed?(subject, kind) != false`, before the requester was passed; an adapter that still defines the two-argument one is asked that way
+    cond do
+      function_exported?(adapter(), :items_listed?, 3) ->
+        adapter().items_listed?(subject, kind, requester) != false
+
+      function_exported?(adapter(), :items_listed?, 2) ->
+        adapter().items_listed?(subject, kind) != false
+
+      true ->
+        true
+    end
   end
 
   @doc """
@@ -478,7 +497,9 @@ defmodule ActivityPub.Federator.Adapter do
   @doc """
   Creates an internal service actor by username, if missing.
 
-  # TODO: make the application actor discoverable with https://codeberg.org/fediverse/fep/src/branch/main/fep/d556/fep-d556.md and https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md
+  Done, was: TODO: make the application actor discoverable with https://codeberg.org/fediverse/fep/src/branch/main/fep/d556/fep-d556.md and https://codeberg.org/fediverse/fep/src/branch/main/fep/2677/fep-2677.md
+
+  Discovery is now through FEP-d556 WebFinger (`ActivityPub.Federator.WebFinger`, `webfinger.ex:81` and `:176`) and the FEP-2677 application actor link in nodeinfo (`ActivityPub.Instances`, `instances.ex:265`).
   """
   @callback get_or_create_service_actor() :: Actor.t() | nil
   def get_or_create_service_actor() do
@@ -647,8 +668,9 @@ defmodule ActivityPub.Federator.Adapter do
                       filter_federation_allowed: 2,
                       collection_items: 2,
                       collection_total: 2,
+                      handle_remote_collection: 2,
+                      items_listed?: 3,
                       adapter_handles?: 1,
                       require_signed_fetch?: 0,
-                      activity_exists?: 3,
-                      items_listed?: 2
+                      activity_exists?: 3
 end
