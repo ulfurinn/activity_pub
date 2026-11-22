@@ -236,6 +236,30 @@ defmodule ActivityPub.TestAdapter do
     end
   end
 
+  # a remote `Create` holding only its object's id: the object is fetched from its origin, and refused if the origin won't serve it. One we hold has to be its actor's own, or carry a proof of its own
+  defp handle(%Object{
+         local: false,
+         data: %{"type" => "Create", "actor" => actor, "object" => object_id}
+       })
+       when is_binary(object_id) do
+    case Object.get_cached(ap_id: object_id) do
+      {:ok, %Object{authenticated: authenticated}}
+      when authenticated in [:integrity_proof, :ld_signature] ->
+        {:ok, nil}
+
+      {:ok, %Object{data: object}} ->
+        if owned_by?(object, Object.get_ap_id(actor)),
+          do: {:ok, nil},
+          else: {:error, :not_the_owner}
+
+      _ ->
+        case ActivityPub.Federator.Fetcher.fetch_object_from_id(object_id) do
+          {:ok, _} -> {:ok, nil}
+          _ -> {:error, :not_found}
+        end
+    end
+  end
+
   # a report is taken only if it names something of ours
   defp handle(%Object{data: %{"type" => "Flag", "object" => flagged}}) do
     if flagged |> List.wrap() |> Enum.any?(&ours?/1),
@@ -274,6 +298,14 @@ defmodule ActivityPub.TestAdapter do
     end)
 
     activity
+  end
+
+  # an object that names no owner is taken as its activity's
+  defp owned_by?(object, actor_id) do
+    case object["attributedTo"] |> List.wrap() |> Enum.map(&Object.get_ap_id/1) do
+      [] -> true
+      owners -> actor_id in owners
+    end
   end
 
   defp ours?(ref) do
