@@ -409,7 +409,8 @@ defmodule ActivityPub.Federator.Transformer.AnnounceHandlingTest do
     end
 
     test "refuses an inlined activity forged from another origin" do
-      group = insert(:actor)
+      # one of ours follows it: a relay from any other group is not taken at its word to begin with
+      group = followed_group()
 
       # on another host than the group's: the factory puts every actor on the same one, where an id on the group's host would be on the author's origin too
       author =
@@ -431,6 +432,7 @@ defmodule ActivityPub.Federator.Transformer.AnnounceHandlingTest do
             "type" => "Note",
             "id" => "#{group.data["id"]}/posts/forged",
             "attributedTo" => author.data["id"],
+            "audience" => group.data["id"],
             "content" => "put words in someone else's mouth"
           }
         }
